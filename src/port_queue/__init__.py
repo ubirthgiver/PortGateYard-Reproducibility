@@ -1,5 +1,3 @@
-"""Port gate-yard queue learning simulation package."""
-
 from .config import SimulationConfig, load_config
 from .simulation import SimulationResult, run_simulation
 

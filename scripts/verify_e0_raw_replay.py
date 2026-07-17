@@ -100,7 +100,6 @@ def run_transform(
 
 
 def _summarize_dwelling_compatible(dwelling: Path, output: Path) -> None:
-    """Replay both the retained 12-column and public 4-column event formats."""
     from openpyxl import load_workbook
 
     files = sorted(dwelling.rglob("*.xlsx"))
@@ -252,7 +251,6 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
     processed = ROOT / "data" / "processed"
 
-    # Replay 1: exact sources retained in the original workspace on 2026-07-09.
     archival_data = WORKSPACE / "data"
     archival_output = output / "archival_snapshot_replay"
     if not all((archival_output / name).exists() for name in OUTPUT_FILES):
@@ -266,7 +264,6 @@ def main() -> int:
             output=archival_output,
         )
 
-    # Replay 2: files downloaded again on 2026-07-17.
     raw = ROOT / "data" / "raw"
     fresh_input = output / "fresh_extracted"
     mendeley = extract_mendeley(raw, fresh_input)

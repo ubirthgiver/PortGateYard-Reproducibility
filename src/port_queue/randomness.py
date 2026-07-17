@@ -50,7 +50,6 @@ def generate_randomness(config: SimulationConfig, scenario: ScenarioConfig, seed
     yard_service_cv = float(_scenario_value(scenario, config, "yard_service_cv"))
     slots_per_day = 1440 // config.slot_minutes
     slot = np.arange(periods) % slots_per_day
-    # Two smooth peaks, normalized to preserve the requested daily mean.
     phase = 2 * np.pi * slot / slots_per_day
     profile = 0.82 + 0.22 * np.maximum(0.0, np.sin(phase - 0.7)) + 0.18 * np.maximum(0.0, np.sin(2 * phase + 0.8))
     profile /= profile.mean()

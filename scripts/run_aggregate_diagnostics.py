@@ -76,7 +76,6 @@ def run_table10(output: Path) -> pd.DataFrame:
     summary.to_csv(output / "table10_reconstructed.csv", index=False, encoding="utf-8-sig")
     pd.concat(traces, ignore_index=True).to_csv(output / "mean_yard_queue_traces.csv", index=False, encoding="utf-8-sig")
 
-    # Pointwise 95% Student-t interval over the ten common starting-seed blocks.
     pivot = block_frame.pivot(index="seed_block", columns="policy")
     comparisons = []
     for metric in ("weighted_cost", "terminal_yard_backlog", "late_horizon_drift"):

@@ -223,7 +223,6 @@ def build_policy_regime_map() -> None:
                 ax.set_xticklabels([])
             if metric in {"mean_composite_cost", "unstable"}:
                 ax.set_ylim(bottom=0)
-            # concise direct labels for the two conceptual anchors
             if metric == "mean_composite_cost":
                 pto_idx = policies.index("pto")
                 fb_idx = policies.index("online_joint")

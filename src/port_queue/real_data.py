@@ -48,7 +48,6 @@ def _to_float(value: str) -> float:
 
 
 def fetch_pola_monthly_teu(years: list[int] | range, output_dir: str | Path) -> pd.DataFrame:
-    """Fetch public monthly TEU statistics from Port of Los Angeles."""
     rows: list[dict[str, object]] = []
     for year in years:
         url = POLA_BASE.format(year=year)
@@ -86,7 +85,6 @@ def representative_teu_scenarios(
     teu: pd.DataFrame,
     base_mean_requests: float = 23.0,
 ) -> tuple[pd.DataFrame, tuple[ScenarioConfig, ...]]:
-    """Map real monthly TEU levels to representative simulated demand intensities."""
     data = teu.copy()
     median_teu = float(data["total_teu"].median())
     targets = [

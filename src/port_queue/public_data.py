@@ -51,10 +51,7 @@ def _copy_if_exists(source: Path, target_dir: Path) -> Path | None:
 
 
 def organize_public_data(project_root: str | Path = ".") -> dict[str, list[Path]]:
-    """Copy root-level downloaded public data into stable data subfolders.
-
-    The function is intentionally non-destructive: root files are copied, not moved.
-    """
+    """Copy downloaded data into stable subfolders without removing originals."""
     root = Path(project_root)
     data = root / "data"
     sc_dir = data / "sc_ports"

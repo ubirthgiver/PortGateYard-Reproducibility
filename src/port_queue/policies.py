@@ -111,7 +111,6 @@ class PTOPolicy(Policy):
 
     def decide(self, state: SystemState) -> tuple[int, int]:
         if state.period < self.exploration_periods:
-            # Deliberate grid exploration, as in a predict-then-optimize design.
             frac = state.period / max(1, self.exploration_periods - 1)
             quota = self.config.quota_min + frac * (self.config.quota_max - self.config.quota_min)
             yard = self.config.yard_capacity_min + ((state.period // 4) % (self.config.yard_capacity_max - self.config.yard_capacity_min + 1))
@@ -159,13 +158,7 @@ class PTOPolicy(Policy):
 
 
 class AdaptivePTOPolicy(PTOPolicy):
-    """Rolling/receding-horizon PTO benchmark.
-
-    Unlike the frozen PTO benchmark, this policy periodically re-estimates the
-    surrogate model from the most recent realized observations. It is still a
-    predictive open-loop optimizer between update epochs, but it is no longer a
-    stale-model stress test.
-    """
+    """Periodically re-estimated fixed-pair PTO benchmark."""
 
     name = "pto_adaptive"
 
@@ -199,12 +192,7 @@ class AdaptivePTOPolicy(PTOPolicy):
 
 
 class FastOnlyPolicy(Policy):
-    """Queue-feedback-only ablation of the online joint policy.
-
-    It uses the same fast workload feedback term as LiQUARPolicy, but freezes
-    the slow adaptive center. This isolates whether the slow learning layer adds
-    value beyond immediate queue-pressure correction.
-    """
+    """Fast-feedback ablation with a frozen adaptive center."""
 
     name = "online_fast_only"
 

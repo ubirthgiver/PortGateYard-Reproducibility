@@ -129,12 +129,7 @@ def select_oracle_pto_actions(
     output_dir: str | Path,
     model_samples: int = 4,
 ) -> dict[tuple[str, str], tuple[int, int]]:
-    """Select fixed PTO actions by simulated expected cost under each PTO model.
-
-    High fidelity uses the true model. Lower-fidelity levels optimize against a
-    misspecified model, then the selected fixed action is evaluated in the true
-    simulation environment.
-    """
+    """Select a fixed PTO action under each belief model."""
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []

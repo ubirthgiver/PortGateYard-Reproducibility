@@ -1,9 +1,4 @@
-"""Documented aggregate reconstructions for manuscript Tables 10 and 12.
-
-These diagnostics are deliberately separate from the vehicle-level DES.  The
-module implements the mass-balance model described in the manuscript and
-persists every design choice that was missing from the earlier archive.
-"""
+"""Independent aggregate reconstructions for manuscript Tables 10 and 12."""
 
 from __future__ import annotations
 
@@ -78,13 +73,7 @@ class AggregateConfig:
 
 
 def lateness_probabilities(support: int) -> np.ndarray:
-    """Return on-time, late-window, and no-show probabilities.
-
-    Public reports identify a four-percent missed share, but not the intraday
-    late split.  L=2 preserves the manuscript's 0.80/0.13/0.03/0.04 design.
-    L=1 pools all late mass in one window.  L=4 extends the observed L=2 shape
-    with a geometrically decreasing tail and renormalises the 0.16 late mass.
-    """
+    """Keep no-shows at 4% and redistribute the 16% late-arrival mass."""
     if support == 1:
         return np.array([0.80, 0.16, 0.04])
     if support == 2:
@@ -107,7 +96,6 @@ def _sample_cohort(
     confirmed: np.ndarray,
     probabilities: np.ndarray,
 ) -> list[np.ndarray]:
-    """Vectorised multinomial sampling for a different n in every path."""
     remaining = confirmed.astype(int).copy()
     remaining_probability = 1.0
     draws: list[np.ndarray] = []
@@ -117,7 +105,7 @@ def _sample_cohort(
         draws.append(draw)
         remaining -= draw
         remaining_probability -= probability
-    draws.append(remaining)  # no-shows
+    draws.append(remaining)
     return draws
 
 
@@ -128,12 +116,7 @@ def _ols_slopes(values: np.ndarray) -> np.ndarray:
 
 
 def _sample_capacity(rng: np.random.Generator, mean: np.ndarray | float, variance_to_mean: float, paths: int) -> np.ndarray:
-    """Sample overdispersed aggregate completion opportunities.
-
-    A gamma--Poisson mixture preserves the nominal service rate while allowing
-    the aggregate window count to retain service-time and within-window timing
-    variation.  ``variance_to_mean=1`` reduces to a Poisson count.
-    """
+    """Sample completion counts with a gamma--Poisson mixture."""
     mean_array = np.broadcast_to(np.asarray(mean, dtype=float), (paths,))
     if variance_to_mean <= 1.0:
         return rng.poisson(mean_array)
@@ -151,7 +134,6 @@ def simulate_paths(
     lateness_support: int = 2,
     gain_multiplier: float = 1.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Simulate vectorised aggregate paths and return path metrics/mean trace."""
     rng = np.random.default_rng(seed)
     probabilities = lateness_probabilities(lateness_support)
     delayed = [np.zeros(paths, dtype=int) for _ in range(lateness_support)]
@@ -207,9 +189,7 @@ def simulate_paths(
             quota, yard = _physical_actions(config, zq + perturb_q + bq, zy + perturb_y + by)
             quota = np.maximum(quota, floor_quota)
 
-        # The diagnostic is a saturated-demand stress test: every offered slot
-        # can be filled.  Mean request volume is retained for the access-loss
-        # normalisation and the feedback floor.
+        # Saturated demand fills every offered appointment slot.
         confirmed = quota.copy()
         cohort = _sample_cohort(rng, confirmed, probabilities)
         arrivals = cohort[0] + delayed.pop(0) + rng.poisson(config.exception_mean, size=paths)

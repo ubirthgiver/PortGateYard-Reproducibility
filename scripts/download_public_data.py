@@ -14,7 +14,6 @@ RAW = ROOT / "data" / "raw"
 
 
 DOWNLOADS = [
-    # SC Ports: official raw CSV downloads linked from the metrics page.
     ("sc_ports", "chsgatetransactions.csv", "https://scspa.com/wp-content/uploads/chsgatetransactions.csv"),
     ("sc_ports", "chsturntimes.csv", "https://scspa.com/wp-content/uploads/chsturntimes.csv"),
     ("sc_ports", "chscraneproductivity.csv", "https://scspa.com/wp-content/uploads/chscraneproductivity.csv"),
@@ -22,8 +21,6 @@ DOWNLOADS = [
     ("sc_ports", "gatemissions.csv", "https://scspa.com/wp-content/uploads/gatemissions.csv"),
     ("sc_ports", "lastweeksturntimes.csv", "https://scspa.com/wp-content/uploads/lastweeksturntimes.csv"),
     ("sc_ports", "piermoves.csv", "https://scspa.com/wp-content/uploads/piermoves.csv"),
-    # Port of Virginia: two archived reports used in the original calibration
-    # plus the current public snapshot available at the audit date.
     (
         "port_virginia_weekly_metrics",
         "POV-Weekly-Metrics-07-09-2023.pdf",
@@ -39,7 +36,6 @@ DOWNLOADS = [
         "POV-Weekly-Metrics-07-12-2026.pdf",
         "https://operations.portofvirginia.com/wp-content/uploads/2026/07/POV-Weekly-Metrics-07-12-2026.pdf",
     ),
-    # Port Houston: archived inputs and a current audit-date snapshot.
     (
         "port_houston_terminal_reports",
         "Terminal-Status-Report-06.08.2026.pdf",
@@ -55,7 +51,6 @@ DOWNLOADS = [
         "Terminal-Status-Report-07.13.2026.pdf",
         "https://porthouston.com/wp-content/uploads/2026/07/Terminal-Status-Report-07.13.2026.pdf",
     ),
-    # Mendeley Data download-all endpoints for the cited immutable versions.
     (
         "mendeley_tas_tours",
         "82zzdkrxx8-v1.zip",
