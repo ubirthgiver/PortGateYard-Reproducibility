@@ -82,4 +82,4 @@ See `REPRODUCE.md`, `REPRODUCIBILITY_STATUS.md`, `MANIFEST.csv`, and `AUDIT_REPO
 
 ## Licence
 
-No software licence has yet been selected by the authors. Until a licence is added, GitHub's default copyright terms apply. Third-party data remain governed by their source licences regardless of the software licence selected for this repository.
+The software and original repository materials are released under the MIT License; see `LICENSE`. Third-party data remain governed by their source licences and are not relicensed by the repository's MIT License.

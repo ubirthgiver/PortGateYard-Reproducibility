@@ -12,7 +12,7 @@
 
 ## Author decisions before public release
 
-- [ ] Select a software licence (for example MIT or BSD-3-Clause).
+- [x] Select a software licence: MIT.
 - [ ] Confirm the final repository name and GitHub account/organisation.
 - [ ] Decide whether any paper-date raw snapshots may legally be redistributed; otherwise retain only hashes, source dates, and processed outputs.
 - [ ] Replace the manuscript's historical Table 10, Table 12, and Figure 3 with the reproducible reconstruction outputs.
