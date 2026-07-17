@@ -1,0 +1,5 @@
+scenario,design_change,tested_values,cost_range,mean_queue_range,terminal_yard_range,max_abs_drift,reproducibility_status
+high,gain_multiplier,0.50-1.50,0.2193-0.2217,5.27-5.84,2.73-3.36,0.000119,script_missing
+peak,gain_multiplier,0.50-1.50,0.2210-0.2232,5.36-5.90,2.74-3.80,0.000145,script_missing
+high,lateness_support,"1, 2, 4",0.2186-0.2208,5.43-5.56,2.66-3.14,0.000164,script_missing
+peak,lateness_support,"1, 2, 4",0.2204-0.2227,5.52-5.65,3.10-3.60,0.000142,script_missing

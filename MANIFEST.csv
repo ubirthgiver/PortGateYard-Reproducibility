@@ -1,0 +1,13 @@
+paper_item,role,code_or_command,config,input,archived_output,status
+E0,public-data calibration,src/port_queue/public_data.py,configs/fidelity.json,data/SOURCES.csv,data/processed/public_data_calibrated_scenarios.csv,partial_raw_sources_not_redistributed
+Table 7 / E1,main high-fidelity comparison,python scripts/reproduce.py e1,configs/fidelity.json,data/processed/public_data_calibrated_scenarios.csv,results/e1/raw_results.csv,exact
+Table 8,high-fidelity PTO and feedback-component diagnostic,python scripts/reproduce.py table8,configs/fidelity.json,data/processed/public_data_calibrated_scenarios.csv,results/table8/adaptive_pto_raw_results.csv,exact
+Table 9 / E2,model-fidelity stress test,python scripts/reproduce.py e2,configs/public_peak_fidelity.json,data/processed/public_data_calibrated_scenarios.csv,results/e2/model_fidelity_raw_results.csv,exact
+Table 10 / Figure 3,severe-error re-identification diagnostic,original script unavailable,not available,reported manuscript values,results/reported_only/table_10_reported.csv,script_missing
+Table 11 / E3,appointment-access trade-off,python scripts/reproduce.py e3,configs/fidelity.json,data/processed/public_data_calibrated_scenarios.csv,results/e3/W0_current/raw_results.csv,exact
+Table 12,gain-lateness reference diagnostic,original script unavailable,not available,reported manuscript values,results/reported_only/table_12_reported.csv,script_missing
+Table 10 reconstruction,severe-error re-identification diagnostic,python scripts/run_aggregate_diagnostics.py table10,configs/table10_reconstruction.json,data/processed/public_data_calibrated_scenarios.csv,generated/table10/,independent_reconstruction_v2
+Table 12 reconstruction,gain-lateness reference diagnostic,python scripts/run_aggregate_diagnostics.py table12,configs/table12_reconstruction.json,data/processed/public_data_calibrated_scenarios.csv,generated/table12/,independent_reconstruction_v2
+Public raw downloads,source acquisition with SHA-256 record,python scripts/download_public_data.py --overwrite,data/SOURCES.csv,official public URLs,data/raw/download_manifest.csv,downloaded_and_verified_2026-07-17
+E0 raw replay,archival and current-source calibration audit,python scripts/verify_e0_raw_replay.py,configs/fidelity.json,paper-date retained snapshot plus data/raw/download_manifest.csv,generated/e0_raw_replay/E0_RAW_REPLAY_AUDIT.md,archival_snapshot_exact_live_download_date_sensitive
+Tables 7/8/9/11,table regeneration,python scripts/build_paper_tables.py,n/a,archived raw outputs,generated/paper_tables/,exact

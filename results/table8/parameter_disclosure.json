@@ -1,0 +1,95 @@
+{
+  "slot_minutes": 30,
+  "days": 30,
+  "warmup_days": 7,
+  "replications": 50,
+  "bootstrap_samples": 1000,
+  "gate_lanes": 4,
+  "gate_service_mean": 5.0,
+  "gate_service_cv": 0.35,
+  "yard_service_mean": 10.0,
+  "yard_service_cv": 0.5,
+  "quota_min": 12,
+  "quota_max": 30,
+  "yard_capacity_min": 6,
+  "yard_capacity_max": 10,
+  "show_probabilities": [
+    0.75,
+    0.1,
+    0.05,
+    0.1
+  ],
+  "exception_arrival_mean": 0.5,
+  "arrival_shock_probability": 0.1,
+  "arrival_shock_multiplier": 1.25,
+  "capacity_disruption_probability": 0.05,
+  "service_level_min": 0.85,
+  "scenarios": [
+    {
+      "name": "sc_high_workload",
+      "mean_requests": 24.431297709923665,
+      "show_probabilities": [
+        0.7871999999999999,
+        0.1152,
+        0.0576,
+        0.04
+      ],
+      "exception_arrival_mean": 0.5,
+      "arrival_shock_probability": 0.1,
+      "arrival_shock_multiplier": 1.25,
+      "normalize_arrival_shocks": true,
+      "capacity_disruption_probability": 0.0611,
+      "gate_service_cv": 0.35,
+      "yard_service_cv": 0.5,
+      "description": "SC Ports 高负荷日: 2026-07-01 00:00:00, gate missions=6401"
+    },
+    {
+      "name": "sc_peak_workload",
+      "mean_requests": 24.595419847328245,
+      "show_probabilities": [
+        0.7871999999999999,
+        0.1152,
+        0.0576,
+        0.04
+      ],
+      "exception_arrival_mean": 0.5,
+      "arrival_shock_probability": 0.1,
+      "arrival_shock_multiplier": 1.25,
+      "normalize_arrival_shocks": true,
+      "capacity_disruption_probability": 0.0611,
+      "gate_service_cv": 0.35,
+      "yard_service_cv": 0.5,
+      "description": "SC Ports 峰值负荷日: 2026-06-30 00:00:00, gate missions=6444"
+    }
+  ],
+  "policy": {
+    "fixed_quota": 25,
+    "fixed_yard_capacity": 8,
+    "pto_exploration_fraction": 0.2,
+    "pto_request_multiplier": 1.0,
+    "pto_show_multiplier": 1.0,
+    "pto_gate_service_multiplier": 1.0,
+    "pto_yard_service_multiplier": 1.0,
+    "liquar_eta0": 0.08,
+    "liquar_delta0": 0.1,
+    "liquar_delta_floor": 0.03
+  },
+  "cost_weights": {
+    "gate_queue": 0.3,
+    "yard_queue": 0.3,
+    "resource": 0.2,
+    "quota_change": 0.1,
+    "overtime": 0.1
+  },
+  "derived": {
+    "periods": 1440,
+    "warmup_periods": 336,
+    "random_seed_rule": "scenario_seed = 10000*(scenario_index+1)+replication; policy_seed = scenario_seed + 100000*(policy_index+1)",
+    "new_policy_update_intervals": {
+      "pto_adaptive_slow": "48 decision windows (24 hours at 30-minute slots), rolling window 144",
+      "pto_adaptive_fast": "6 decision windows (3 hours at 30-minute slots), rolling window 48",
+      "online_fast_only": "fast queue feedback only; slow adaptive center frozen",
+      "online_joint": "fast queue feedback plus two-point slow adaptive center"
+    }
+  }
+}

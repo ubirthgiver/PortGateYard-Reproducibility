@@ -1,0 +1,55 @@
+{
+  "slot_minutes": 30,
+  "days": 30,
+  "warmup_days": 7,
+  "replications": 50,
+  "bootstrap_samples": 2000,
+  "gate_lanes": 4,
+  "gate_service_mean": 5.0,
+  "gate_service_cv": 0.35,
+  "yard_service_mean": 10.0,
+  "yard_service_cv": 0.50,
+  "quota_min": 12,
+  "quota_max": 30,
+  "yard_capacity_min": 6,
+  "yard_capacity_max": 10,
+  "show_probabilities": [0.75, 0.10, 0.05, 0.10],
+  "exception_arrival_mean": 0.5,
+  "arrival_shock_probability": 0.10,
+  "arrival_shock_multiplier": 1.25,
+  "capacity_disruption_probability": 0.0611,
+  "service_level_min": 0.85,
+  "scenarios": {
+    "public_peak_workload": {
+      "description": "公开真实数据校准峰值负荷场景：SC Ports 2026-06-30 gate missions=6444，Port Virginia missed reservation≈4%，Port Houston yard utilization/dwell pressure 校准堆场扰动。",
+      "mean_requests": 24.595419847328245,
+      "show_probabilities": [0.7872, 0.1152, 0.0576, 0.04],
+      "exception_arrival_mean": 0.5,
+      "arrival_shock_probability": 0.10,
+      "arrival_shock_multiplier": 1.25,
+      "normalize_arrival_shocks": true,
+      "capacity_disruption_probability": 0.0611,
+      "gate_service_cv": 0.35,
+      "yard_service_cv": 0.50
+    }
+  },
+  "policy": {
+    "fixed_quota": 25,
+    "fixed_yard_capacity": 8,
+    "pto_exploration_fraction": 0.20,
+    "pto_request_multiplier": 1.0,
+    "pto_show_multiplier": 1.0,
+    "pto_gate_service_multiplier": 1.0,
+    "pto_yard_service_multiplier": 1.0,
+    "liquar_eta0": 0.08,
+    "liquar_delta0": 0.10,
+    "liquar_delta_floor": 0.03
+  },
+  "cost_weights": {
+    "gate_queue": 0.30,
+    "yard_queue": 0.30,
+    "resource": 0.20,
+    "quota_change": 0.10,
+    "overtime": 0.10
+  }
+}

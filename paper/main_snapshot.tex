@@ -1,0 +1,1205 @@
+%% Manuscript source using the Elsevier elsarticle class.
+\documentclass[preprint,12pt,authoryear,a4paper]{elsarticle}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\graphicspath{{figure/}}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{threeparttable}
+\usepackage{makecell}
+\usepackage{enumitem}
+\usepackage{lineno}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+  pdfauthor={}
+}
+
+\setlength{\emergencystretch}{1.5em}
+
+\biboptions{authoryear,round}
+
+\journal{Ocean \& Coastal Management}
+
+\begin{document}
+
+\linenumbers
+
+\begin{frontmatter}
+
+\title{Predictive Planning with Workload-Responsive Correction for Port Gate--Yard Coordination}
+
+\begin{abstract}
+Truck appointment systems and predict-then-optimize (PTO) planning can reduce port landside congestion when demand, compliance, and service-capacity models remain reliable, yet realized gate and yard workloads can depart from the planned path. We study how execution-time workload feedback can complement predictive planning in a coupled gate--yard system. At each booking cutoff, a fast correction adjusts only new appointment confirmations and yard-service capacity from observed workload; confirmed appointments are never cancelled. An optional paired-perturbation tracker can move the correction's operating center. Conditional mechanism results show why gate output can propagate congestion to the yard, why accurate open-loop PTO is a strong benchmark within its plan class, and why a maintained instruction produces cumulative yard drift when its realized gate output persistently exceeds realized yard service. In public-data-calibrated experiments, high-fidelity fixed-pair PTO has the lowest cost and waiting. Under medium and severe service-capacity overestimation, fixed-pair no-reidentification PTO develops persistent downstream congestion that the evaluated fast-plus-tracker implementation avoids; fast-only feedback is not tested on that original matched misspecification path. In a separate aggregate reconstruction, fast-only correction also avoids positive drift and has lower cost and terminal backlog than fast-plus-tracker feedback, while daily or three-day re-identification removes almost all of the reconstructed frozen-plan loss. The evidence supports predictive planning as the operating backbone and workload correction when model maintenance is slower than congestion buildup.
+\end{abstract}
+
+\begin{keyword}
+Port landside operations \sep Truck appointment systems \sep Gate--yard coordination \sep Feedback control \sep Predict-then-optimize \sep Model misspecification
+\end{keyword}
+
+\end{frontmatter}
+\clearpage
+
+\section{Introduction}
+\label{sec:introduction}
+
+Port landside congestion is both an operational and a governance problem. Concentrated truck arrivals lengthen gate queues, make yard service uneven, and transmit delay to drayage carriers, shippers, warehouses, nearby roads, and surrounding communities. Processing trucks faster at the gate is not sufficient: the yard must be able to absorb the workload released downstream. A gate policy that ignores yard pressure can therefore relocate congestion rather than remove it.
+
+Truck appointment research has developed quotas, time-window designs, collaborative mechanisms, and robust rules for regulating terminal access~\citep{GuanLiu2009GateAppointment,TorkjaziHuynhShiri2018TruckTours,ImYuLee2020TruckAppointmentCooperation,AzabKaramEltawil2017DynamicCollaborativeTAS,LiJiaTaoLin2024RobustGateAppointment}. Terminal-planning research likewise shows the value of integrated and robust resource decisions under uncertain demand and service~\citep{RodriguesAgra2022Survey,AgraRodrigues2022DROBAP,ZhenEtAl2022BerthYard,TanHeWang2017FlexibleYardTemplate}. Landside execution, however, is not a stationary replay of either plan. No-shows, late arrivals, exception trucks, road conditions, staffing, equipment availability, and yard disruptions separate the appointment--capacity plan from the workload actually observed at the gate and yard. The unresolved interface is how a terminal should respond between planning updates, after workload imbalance becomes visible but before the maintained model is re-estimated and re-solved.
+
+This paper asks when a container terminal should rely on predict-then-optimize (PTO) methods for appointment and capacity planning, and when execution-time workload correction should complement that plan. The comparison distinguishes three operating regimes: executing a predictive plan whose model remains reliable, periodically re-estimating the model and re-solving the plan, and supplementing a maintained plan with workload-responsive correction during execution. The objective is to characterize these mechanisms, not to construct an automatic mode-selection system.
+
+We develop a two-node gate--yard framework with an explicit decision clock. At the booking cutoff for each service window, the terminal observes pending requests, immutable appointments confirmed for earlier cohorts, and current workloads. It decides how many pending requests to confirm and how much yard-service capacity to activate; confirmed appointments can arrive on time, arrive late, or fail to appear, and gate completions become yard workload. A fast correction moves the two controls from observed workload pressure and enforces an appointment-access floor. A separable paired-perturbation tracker can move the operating center, but it is not needed to execute the fast correction.
+
+The paper contributes four elements. First, it links appointment confirmation to downstream yard service while distinguishing pending requests, confirmed cohorts, and physical arrivals. Second, it specifies an interpretable workload-correction rule and separates its mandatory baseline, fast response, optional tracker, and safe execution map. Third, it develops conditional mechanism, model-fidelity, and simulation-selection bounds: gate output propagates to the yard, corrective value requires an informative and feasible response direction, and a maintained plan accumulates yard workload only when it induces a persistent realized gate--service imbalance. Fourth, it compares fixed operation, Monte Carlo-selected fixed-pair PTO, periodic fixed-pair re-identification, and feedback configurations in public-data-calibrated environments and independent mechanism diagnostics. The main vehicle-level misspecification evidence belongs to the evaluated fast-plus-tracker implementation; separate diagnostics identify fast-only correction as the more parsimonious component under high fidelity and compare both feedback specifications in an aggregate severe-error reconstruction.
+
+The remainder of the paper is organized as follows. Section~\ref{sec:literature-review} reviews related work on truck appointment systems, terminal planning under uncertainty, and queueing feedback control. Section~\ref{sec:system-setting} defines the gate--yard service setting and performance measures. Section~\ref{sec:feedback-coordination} presents the workload-responsive feedback policy. Section~\ref{sec:analytical-properties} develops the analytical properties. Section~\ref{sec:computational-study} reports the public-data-calibrated experiments and separate mechanism diagnostics. Section~\ref{sec:policy-implications} discusses managerial and policy implications. Section~\ref{sec:conclusion} concludes.
+
+\section{Literature review}
+\label{sec:literature-review}
+
+\subsection{Truck appointment systems, access planning, and compliance}
+
+Truck appointment systems are widely studied as tools for smoothing terminal arrivals and regulating access. Early work showed that quotas and time-window management can reduce peak gate demand~\citep{GuanLiu2009GateAppointment}. Later studies incorporated drayage tours, carrier cooperation, dynamic appointment design, robust decisions, and operational data~\citep{TorkjaziHuynhShiri2018TruckTours,ImYuLee2020TruckAppointmentCooperation,AzabKaramEltawil2017DynamicCollaborativeTAS,LiJiaTaoLin2024RobustGateAppointment,SunShiZheng2025DataDrivenTAS}. This stream establishes appointment confirmation as a port-management decision and motivates the access outcomes reported here: waiting, confirmation, throughput, and unconfirmed requests.
+
+Appointment decisions do not, however, determine the time at which accepted trucks physically appear. No-shows, late arrivals, exception movements, fleet dispatch choices, and road disruptions separate an accepted appointment cohort from the realized arrival stream. This timing distinction matters for both model design and policy evaluation: a rule that accepts few requests may report low queues without providing broad access, while a rule based only on current requests may overlook vehicles still arriving from earlier accepted cohorts.
+
+The appointment literature therefore supplies the upstream decision and the compliance mechanism. It does not by itself resolve how accepted demand should be coordinated with the yard capacity that must complete in-terminal service. That downstream planning problem is the focus of the next stream.
+
+\subsection{Predictive gate--yard planning and model maintenance}
+
+Yard and terminal-resource studies establish the downstream side of landside service. Yard templates, yard space, and integrated terminal planning show that internal capacity and resource allocation shape truck service performance~\citep{TanHeWang2017FlexibleYardTemplate,ZhenEtAl2022BerthYard}. Robust and distributionally robust terminal models protect plans against uncertain demand, vessel operations, or service capacity before execution~\citep{RodriguesAgra2022Survey,AgraRodrigues2022DROBAP,LiJiaTaoLin2024RobustGateAppointment}. These studies motivate the paper's gate--yard coupling: appointment confirmation controls upstream workload, whereas yard capacity determines whether gate completions can be absorbed downstream.
+
+Predict-then-optimize uses an estimated outcome model to select operational decisions~\citep{BertsimasKallus2020PrescriptiveAnalytics,ElmachtoubGrigas2022SmartPTO}. In a terminal, that logic appears when forecasts or estimated distributions determine appointment quotas and service resources before execution. Receding-horizon optimization goes further by updating the state or model estimate and repeatedly solving the planning problem~\citep{MayneRawlingsRaoScokaert2000MPC,RawlingsMayneDiehl2017MPC}. The relevant distinction is therefore not simply offline versus online control. It is whether the predictive model remains accurate, whether the operator can re-identify it quickly, and whether queue observations are used between re-solving epochs.
+
+This paper consequently treats PTO as a strong benchmark. An accurate open-loop model should perform well within its decision class, and an adaptive planner can recover from error when the relevant parameter is observed and the model is re-solved quickly. The no-reidentification case is narrower: it maintains an action selected under a belief model even after realized service departs from that belief. Separating these cases allows the experiments to attribute performance loss to model maintenance rather than to predictive planning in general.
+
+The closest predictive studies thus provide the appointment--capacity plan, the uncertainty model, and the possibility of re-solving. The remaining interface is execution between planning updates: realized gate output becomes yard input, and current queues may reveal imbalance before a revised predictive model is available.
+
+\subsection{Execution-time workload feedback and the remaining interface}
+
+Queueing control provides a natural language for execution-time correction. Classical studies allow admission, service rates, or scheduling decisions to respond to congestion~\citep{StidhamWeber1989QueueControl,Wein1990ControllableInputs,GeorgeHarrison2001AdjustableService,Neely2010StochasticNetwork}. Stochastic approximation and online queue-learning further motivate low-dimensional action updates from noisy performance observations~\citep{RobbinsMonro1951StochasticApproximation,KushnerYin2003StochasticApproximation,Borkar2008StochasticApproximation,ChenHongLiu2026QueueLearning,CohenSubramanianZhang2024Admission}.
+
+Direct transfer to port landside operations is not immediate. The control concerns advance appointment cohorts rather than only contemporaneous admissions; accepted trucks can arrive late; gate output becomes yard input; and yard capacity is discrete, shift-constrained, and disrupted. Appointment access must also be reported explicitly because low queues can be produced by rejecting more requests. Finally, the relevant comparison is a PTO plan that may be difficult to improve upon when its maintained model is accurate.
+
+The three streams therefore enter the paper in sequence. Appointment research defines the accepted cohort and access consequences; predictive terminal planning links that cohort to downstream capacity and supplies the PTO benchmark; queueing control supplies an execution-time response to observed imbalance. This paper combines these elements to compare maintained prediction, periodic re-identification, and workload correction in a coupled gate--yard system.
+
+The proposed correction layer is deliberately narrower than a terminal optimizer, yard-crane scheduler, or automatic mode-selection system. It adjusts two observable levers while detailed planning remains outside the layer. Table~\ref{tab:literature-gap-map} summarizes how the three streams define the interface studied here.
+
+\begin{table*}[htbp]
+\centering
+\caption{Literature streams and the operational interface studied in this paper.}
+\label{tab:literature-gap-map}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.29\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}X}
+\toprule
+Literature stream & Established focus & Interface addressed here \\
+\midrule
+Truck appointment systems & Appointment quotas, time windows, carrier coordination, compliance, and terminal access & Distinguish pending requests, immutable confirmed cohorts, late arrivals, and access outcomes before linking confirmations to downstream service. \\
+Predictive and robust terminal planning & Pre-execution appointment--capacity plans under uncertain demand and service; receding-horizon re-solving & Separate a maintained fixed-pair belief from periodic capacity re-identification and compare both with execution-time correction. \\
+Queueing and online control & State-responsive admission, service, and low-dimensional stochastic updates & Convert observed gate--yard workload into feasible confirmation and yard-capacity corrections with integer and appointment-access constraints. \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+\section{System setting and operational decisions}
+\label{sec:system-setting}
+
+This section translates the port-management problem into a sequence of operational events. Before a service window opens, carriers submit appointment requests. At the booking cutoff, the terminal observes pending requests, confirmed appointments that remain eligible to arrive from earlier cohorts, and current workloads. It then confirms some pending requests and activates yard capacity. A confirmed request cannot subsequently be withdrawn by the feedback policy. During execution, confirmed trucks may appear on time, appear late, or fail to appear; the gate processes realized arrivals; and each gate completion creates yard workload. Thus, \(a_t\) is a new-cohort confirmation decision, not a cancellation or release decision for an existing appointment.
+
+\subsection{Port landside service ecosystem and decision timing}
+\label{subsec:3-1-port-landside-service-ecosystem-and-decision-timing}
+
+We consider the landside service ecosystem of a container terminal in which truck access decisions, gate processing, and yard operations are operationally coupled. Trucking companies submit requests for a specified service window before its booking cutoff. At that cutoff, the terminal confirms a subset of the still-pending requests. The confirmation decision applies only to the new cohort: appointments confirmed at earlier cutoffs remain valid and enter the outstanding pipeline until the truck appears or exhausts its lateness allowance. Confirmed trucks may arrive on time, arrive late, or fail to appear; trucks that complete gate processing subsequently require yard service. Existing truck-appointment studies show how time-window and confirmation decisions can regulate terminal arrivals~\citep{GuanLiu2009GateAppointment,TorkjaziHuynhShiri2018TruckTours,LiJiaTaoLin2024RobustGateAppointment}. The terminal in our setting faces an additional coordination task: it must match newly confirmed upstream workload with sufficient downstream capacity.
+
+The base model places the booking cutoff immediately before the associated service window. This convention lets the state at the cutoff inform both the new confirmations and the capacity activated for that window. At terminals that close appointment books earlier, the same decision applies to the next service cohort whose book remains open; it does not authorize cancellation of a closed cohort. Longer confirmation lead times would introduce an explicit action delay and are outside the present computational design. We therefore treat the truck appointment system as one control component within a broader port service ecosystem rather than as an isolated slot-allocation problem.
+
+Figure~\ref{fig:service-ecosystem} summarizes the decision sequence. Predictive planning sets the operating backbone before or between operating blocks, while the feedback layer uses realized gate and yard states to correct deviations during execution. The figure is a system schematic, not an empirical process map.
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=0.96\textwidth]{fig_service_ecosystem.pdf}
+\caption{Schematic port landside service ecosystem. Both control layers set the same per-window action (new appointment confirmations and yard capacity), but predictive planning fixes an open-loop operating point from a belief model, whereas workload feedback observes realized gate--yard queues (dashed loop) and corrects imbalance subject to feasibility and an appointment-access floor. Confirmed appointments are not revoked.}
+\label{fig:service-ecosystem}
+\end{figure*}
+
+The operating horizon is divided into discrete decision windows indexed by
+
+\[
+t=1,\ldots,T.
+\]
+
+The window length can follow the temporal resolution of the available operational data. The computational study uses 30-minute windows, which are sufficiently short to represent intraday queue responses while remaining compatible with the resolution of public port performance records. At the beginning of window \(t\), the terminal observes the currently available operational information and selects the control vector
+
+\[
+\theta_t=(a_t,\mu_t^y),
+\]
+
+where \(a_t\) is the number of pending requests newly confirmed at the cutoff for service window \(t\) and \(\mu_t^y\) is an aggregate yard-service capacity level activated for that window. The action \(a_t\) neither cancels nor reschedules a request already contained in the outstanding pipeline. The capacity variable may represent the number of active service units, a staffing--equipment package, or another implementable capacity tier. The two controls regulate newly confirmed workload and the capacity available to complete downstream service. We use \emph{confirmation} for the decision and reserve \emph{physical arrival} and \emph{completion} for later events.
+
+Let \(R_t\) denote the pending appointment requests available at the cutoff for service window \(t\). Let \(L\) be the maximum number of windows by which a confirmed truck remains eligible to arrive late, and let \(H_t=(H_{t,1},\ldots,H_{t,L})\) denote the observable appointment pipeline. Component \(H_{t,d}\) records confirmed requests from earlier cohorts that have not appeared and can still arrive after \(d\) additional windows. The base simulation sets \(L=2\); this is a finite-support design assumption, not a rule inferred from the public aggregate data. The variables \(C_t\), \(O_t\), \(M_t\), and \(E_t\) summarize recent compliance information, container-yard occupancy excluding the truck service queue, available equipment and service conditions, and exogenous information such as road congestion, weather, vessel-related peaks, and disruptions.
+
+The vehicle-level simulation also retains service already in progress. Let \(B_t^g\) and \(B_t^y\) be the gate- and yard-server status vectors at the cutoff, including the remaining service time of each busy server, and let \(I_t^g\) and \(I_t^y\) be the corresponding numbers of busy servers. A full predecision simulator state is
+
+\[
+\Xi_t=(Q_t^g,Q_t^y,B_t^g,B_t^y,R_t,H_t,C_t,O_t,M_t,E_t,\theta_{t-1}).
+\]
+
+The implemented controller uses the compressed observable summary
+
+\[
+S_t=(Q_t^g,Q_t^y,I_t^g,I_t^y,R_t,H_t,C_t,O_t,M_t,E_t,\theta_{t-1}).
+\]
+
+Here \(Q_t^g\) and \(Q_t^y\) are the numbers waiting at the gate and yard, respectively, and \(\theta_{t-1}\) is retained because the performance cost records action changes. The discrete-event dynamics evolve on \(\Xi_t\); \(S_t\) is the information supplied to the feedback rule and is not asserted to be a Markov-sufficient compression of the residual-service state. More generally, \(\mathcal I_t\) denotes the information history available at the cutoff.
+
+All policies must satisfy the physical feasible set
+
+\[
+\theta_t\in\Theta_t^{\mathrm{phys}},
+\]
+
+with bounds
+
+\[
+0\le a_t\le \min\{R_t,\overline a_t\},
+\qquad
+\underline\mu_t^y\le\mu_t^y\le\overline\mu_t^y.
+\]
+
+The request bound prevents the terminal from confirming more pending requests than are currently available; \(\overline a_t\) is the physical appointment limit. The physical set can also include shift or equipment availability constraints and limits on abrupt changes between adjacent windows. It contains no operation that removes an appointment from \(H_t\). The feedback policy later adds an appointment-access constraint, producing a policy-specific subset \(\Theta_t^{\mathrm{FB}}\subseteq\Theta_t^{\mathrm{phys}}\), where the superscript \(\mathrm{FB}\) denotes feedback; the fixed and PTO benchmarks are evaluated within their stated candidate sets under the physical bounds. When yard capacity must be expressed as an integer number of active units, we write
+
+\[
+m_t\in\{0,1,\ldots,M\},
+\qquad
+\mu_t^y=h(m_t),
+\]
+
+where \(h(\cdot)\) maps equipment or staffing units into aggregate service capacity. The analytical model can use a continuous relaxation, while an implementation must map the relaxed instruction to a feasible integer level using a pre-specified deterministic tie-breaking rule.
+
+The scope is a landside coordination layer. The model does not attempt to reproduce berth allocation, detailed container-stacking decisions, individual crane dispatch, external road-network routing, or microscopic truck trajectories. Its purpose is narrower: to examine how new appointment confirmation and yard-service capacity interact when realized workload deviates from a planned path.
+
+\subsection{Gate--yard tandem dynamics with appointment compliance}
+\label{subsec:3-2-gate-yard-tandem-dynamics-with-appointment-compliance}
+
+Appointment confirmation does not uniquely determine the number or timing of trucks that arrive. To make the timing explicit, let \(X_{\tau,d}\) denote the number of requests confirmed for cohort \(\tau\) that physically arrive \(d\in\{0,\ldots,L\}\) windows later; the remaining confirmed requests in the cohort are no-shows. Let \(A_t^e\) collect walk-ins and other exception arrivals. The physical arrivals in window \(t\) are therefore
+
+\[
+A_t=\sum_{d=0}^{L}X_{t-d,d}+A_t^e.
+\]
+
+To make the appointment memory explicit, let \(U_{\tau,t}\) be the number of requests confirmed for cohort \(\tau\) that have not appeared by the cutoff of window \(t\) and remain eligible to arrive. Then \(H_t=(U_{t-1,t},\ldots,U_{t-L,t})\). After arrivals in window \(t\), the new cohort enters the pipeline as \(U_{t,t+1}=a_t-X_{t,0}\). For an earlier cohort with \(1\le t-\tau<L\), \(U_{\tau,t+1}=U_{\tau,t}-X_{\tau,t-\tau}\); after its final eligible window, any residual is removed as a no-show. With 30-minute windows, the base value \(L=2\) corresponds to a maximum modeled lateness of 60 minutes. The computational study separately checks one- and four-window supports because the aggregate public sources identify missed reservations but not the intraday distribution of lateness. Equivalently, the aggregate arrival kernel can be written as
+
+\[
+A_t=A_t(a_t,H_t,C_t,E_t,\varepsilon_t),
+\]
+
+where \(\varepsilon_t\) captures residual uncertainty. An equivalent conditional-moment representation is
+
+\[
+\mathbb E[A_t\mid a_t,H_t,C_t,E_t]
+=\lambda_t(a_t,H_t,C_t,E_t),
+\]
+
+and
+
+\[
+\operatorname{Var}(A_t\mid a_t,H_t,C_t,E_t)
+=\sigma_t^2(a_t,H_t,C_t,E_t)>0.
+\]
+
+Thus, current arrivals depend on both the new confirmation decision and unresolved earlier cohorts, and they remain stochastic after those quantities are observed. The base simulation assigns confirmed trucks to on-time, one-window-late, two-window-late, or no-show outcomes and adds exception arrivals independently. This construction distinguishes pending requests, newly confirmed cohorts, immutable outstanding appointments, and physical arrivals.
+
+Let \(N_t^g=Q_t^g+I_t^g\) and \(N_t^y=Q_t^y+I_t^y\) denote the total unfinished gate and yard workloads, including trucks waiting or in service. To distinguish potential service from completed service, let
+
+\[
+G_t=G_t(B_t^g,M_t,E_t)
+\]
+
+be the potential number of trucks that the gate can process during window \(t\), before losses caused by within-window idleness or late arrivals are accounted for. Let \(D_t^g\) be the actual number of gate completions. In a vehicle-level system,
+
+\[
+0\le D_t^g\le\min\{N_t^g+A_t,G_t\}.
+\]
+
+Similarly, let
+
+\[
+Y_t(\mu_t^y)=Y_t(\mu_t^y,B_t^y,M_t,O_t,E_t)
+\]
+
+be potential yard-service capacity under the chosen capacity level, and let \(D_t^y\) be actual yard completions. Then
+
+\[
+0\le D_t^y\le\min\{N_t^y+D_t^g,Y_t(\mu_t^y)\}.
+\]
+
+The inequalities separate available work, potential capacity, and realized completion. They become equalities in an aggregate saturation model, or when work is available early enough to keep the relevant servers busy throughout the usable part of the window. In a vehicle-level discrete-event system, a truck arriving near the end of a window cannot recover capacity lost while a server was idle. Disruptions can further reduce potential yard capacity even when the planned capacity \(\mu_t^y\) is unchanged.
+
+The exact count balance for unfinished gate workload is
+
+\[
+N_{t+1}^g
+=N_t^g+A_t-D_t^g.
+\tag{1}
+\]
+
+The corresponding yard balance is
+
+\[
+N_{t+1}^y
+=N_t^y+D_t^g-D_t^y.
+\tag{2}
+\]
+
+Equations~(1)--(2) are mass-balance identities and reveal the central operational coupling. The gate output \(D_t^g\) is the yard input. Increasing appointment confirmation can raise gate workload, while accelerating gate processing can shift trucks downstream more quickly. If realized yard service is not adjusted accordingly, an apparent improvement at the gate can coexist with persistent or increasing unfinished workload inside the terminal. Gate and yard performance must therefore be evaluated jointly.
+
+The archived primary study is described as a vehicle-level, first-come-first-served discrete-event system: trucks are assigned to available gate servers, move to the yard queue after gate completion, and then enter available yard servers; residual service times cross decision-window boundaries, and waiting-queue areas are accumulated within windows. The original simulator is not retained, so those event mechanics cannot be independently verified. The accompanying reference diagnostics instead use the aggregate saturation equalities associated with the upper bounds above. Their queue transitions are therefore mechanism approximations rather than reconstructions of the unavailable vehicle-level event process.
+
+\subsection{Performance measures, appointment-access protection, and capacity scope}
+\label{subsec:3-3-performance-measures-access-protection-and-capacity-scope}
+
+The terminal balances congestion, resource use, operational adjustment, and appointment access. Let \(\omega_t\) collect the within-window appearance, service, exception-arrival, and disruption realizations. A dimensionless additive one-period performance cost is
+
+\[
+\begin{aligned}
+c_t(\Xi_t,\theta_t,\omega_t)
+=\;&w_g\varphi_g(\mathcal Q_t^g)+w_y\varphi_y(\mathcal Q_t^y)
++w_o\varphi_o([O_t-\overline O]_+)\\
+&+w_r\varphi_r(\mu_t^y)
++w_s\varphi_s(\theta_t,\theta_{t-1})
++w_l\varphi_l(U_t),
+\end{aligned}
+\tag{3}
+\]
+
+where \(\mathcal Q_t^g\) and \(\mathcal Q_t^y\) are the gate- and yard-queue exposure accumulated during window \(t\), implemented as time-average waiting-queue lengths in the discrete-event simulation. They differ from the beginning-of-window variables because the realized cost records the consequences of the action and \(\omega_t\). The functions \(\varphi_g,\varphi_y,\varphi_o,\varphi_r,\varphi_s,\varphi_l\) place the heterogeneous components on dimensionless scales; in particular, \(\varphi_s\) scales confirmation and capacity changes separately before combining them. The term \([O_t-\overline O]_+\) represents container-yard occupancy above a specified threshold, and \(O_t\) excludes the truck service queue. The access-loss variable is
+
+\[
+U_t=R_t-a_t,
+\]
+
+the number of currently observed requests left unconfirmed in window \(t\). These cohort-specific requests exit the current decision; any later resubmission appears as a new request in a future \(R_{t'}\) and is outside the present cohort model. For continuity with appointment-system reporting, the experiments label \(U_t\) as rejected requests. It does not include confirmed trucks that arrive late, remain in a queue, or fail to appear.
+
+Let \(t_{\mathrm w}\) be the number of warm-up windows excluded from evaluation. The expected post-warm-up average cost of a policy \(\pi\) under the true operating environment \(\mathcal M\) is
+
+\[
+J_{\mathcal M}(\pi)
+=\mathbb E_{\mathcal M,\pi}
+\left[
+\frac{1}{T-t_{\mathrm w}}
+\sum_{t=t_{\mathrm w}+1}^{T}c_t(\Xi_t,\theta_t,\omega_t)
+\right].
+\tag{4}
+\]
+
+Let \(\Pi^{\mathrm{phys}}\) be the class of nonanticipative policies satisfying \(\theta_t=\pi_t(\mathcal I_t)\in\Theta_t^{\mathrm{phys}}\). The common decision problem underlying the policy comparisons is
+
+\[
+\inf_{\pi\in\Pi^{\mathrm{phys}}}J_{\mathcal M}(\pi).
+\tag{4a}
+\]
+
+The paper does not claim to solve Eq.~(4a) over all admissible policies. The fixed baseline, predictive-planning policies, and workload-feedback policies studied below are restricted policy families with different information and updating structures. Writing the common problem explicitly ensures that their costs refer to the same gate--yard system and performance accounting.
+
+Equation~(3) is a weighted performance index, not an exact financial or social-welfare measure. The computational study uses \(t_{\mathrm w}=7\times48\) windows and reports the average in Eq.~(4), rather than a 30-day total. It sets \(w_o=0\) because the public records do not identify a vehicle-level yard-occupancy series. The archived vehicle-level materials preserve the component meanings and weight vectors but not the exact normalization maps \(\varphi_\cdot\) used for the primary vehicle-level experiments. The reported cost values are therefore evidence records rather than quantities reproducible from the deposited files. Confirmation, throughput, unconfirmed requests, and resource hours per completed truck are reported separately to reveal whether lower waiting was achieved through additional resources or reduced access.
+
+The appointment-access safeguard can be imposed either as a penalty or as a constraint. In the computational feedback policy, confirmation is subject to the rolling floor
+
+\[
+a_t\ge
+\min\left\{R_t,\overline a_t,
+\left\lceil\rho_{\min}\overline R_t\right\rceil
+\right\},
+\tag{5}
+\]
+
+where \(\rho_{\min}\in(0,1]\) is a target confirmation fraction and \(\overline R_t\) is computed from a pre-specified lookback \(W_R\): \(\overline R_t=|\mathcal W_t|^{-1}\sum_{s\in\mathcal W_t}R_s\), with \(\mathcal W_t=\{\max(1,t-W_R),\ldots,t-1\}\) and a pre-specified initial mean when \(\mathcal W_t\) is empty. A complete implementation must record \(W_R\) and that initialization. The caps at \(R_t\) and \(\overline a_t\) ensure that the floor cannot exceed either available requests or the physical appointment limit. We write \(\Theta_t^{\mathrm{FB}}\) for the subset of \(\Theta_t^{\mathrm{phys}}\) satisfying Eq.~(5). This access floor is a feedback-policy constraint, not a common constraint imposed on the fixed and PTO candidate classes; their access consequences are instead included in the cost and reported outcomes. Equation~(5) protects the opportunity to receive an appointment, not physical arrival, service completion, or a waiting-time target.
+
+Mean and tail waiting measures are retained as evaluation outcomes. For a waiting-time random variable \(W\), the 95th percentile (P95) is
+
+\[
+\operatorname{P95}(W)
+=\inf\{z:\Pr(W\le z)\ge0.95\}.
+\tag{6}
+\]
+
+P95 waiting is not inserted as a primitive one-period cost because it is a path- or sample-level statistic rather than a naturally additive state cost. If tail congestion is to be optimized directly, an additive exceedance penalty such as \([Q_t-\kappa]_+\), or a formally defined conditional value-at-risk term, can be used. The computational study reports mean and P95 waiting, queue levels, throughput, confirmation, unconfirmed requests, utilization, and weighted performance cost.
+
+Finally, we use a statewise capacity-slack condition to delimit an operating region in which corrective authority exists. When state dependence matters, write the physical feasible set as \(\Theta_t^{\mathrm{phys}}(\xi)\). The condition is: there are constants \(\delta_g,\delta_y>0\) such that, for every full predecision state \(\xi\in\mathcal X_0\), there exists one action \(\theta(\xi)=(a(\xi),\mu^y(\xi))\in\Theta_t^{\mathrm{phys}}(\xi)\) that satisfies both
+
+\[
+\mathbb E[A_t\mid \Xi_t=\xi,\theta_t=\theta(\xi)]
+\le \mathbb E[G_t\mid \Xi_t=\xi]-\delta_g,
+\tag{7}
+\]
+
+and
+
+\[
+\mathbb E[D_t^g\mid \Xi_t=\xi,\theta_t=\theta(\xi)]
+\le \mathbb E[Y_t(\mu^y(\xi))\mid \Xi_t=\xi,\theta_t=\theta(\xi)]-\delta_y.
+\tag{8}
+\]
+
+The quantifier order is therefore \(\forall\xi\in\mathcal X_0\,\exists\theta(\xi)\), not the stronger requirement that one fixed action work for every state. Equations~(7)--(8) define the region in which a corrective action is physically available; the drift results below still require the evaluated policy to choose an action that actually improves the realized input--service imbalance. The condition is not derived from the feedback rule and is neither used as, nor sufficient for, a stochastic-stability theorem. Persistent failure for every feasible action indicates structural capacity shortage rather than an algorithmic failure.
+
+\section{Workload-responsive feedback coordination}
+\label{sec:feedback-coordination}
+
+The coordination mechanism separates three operations that a reader must not conflate: choosing a physical baseline, applying a per-window fast correction, and optionally tracking a moving operating center. The baseline may come from an offline predictive plan, a documented operating rule, or another independently chosen feasible pair. The fast rule then moves new confirmations and yard capacity when observed workload reveals an imbalance. The optional paired-perturbation tracker changes the center from sequential realized costs; it is not required to execute workload correction. The primary vehicle-level high-fidelity and model-misspecification comparisons evaluate the combined fast-plus-tracker implementation. A high-fidelity component comparison and an independent aggregate severe-error reconstruction separately evaluate the tracker's incremental effect.
+
+\subsection{Policy families and information structure}
+\label{subsec:4-1-policy-class-and-information-structure}
+
+We organize the evaluated policies into three families that represent different uses of operational information. A policy first issues an appointment--capacity instruction and then passes it through a physical execution map \(\Gamma_t^{\mathrm{phys}}\), which truncates confirmations by current request availability and the physical appointment cap, clips capacity to available levels, and applies a pre-specified integer rounding rule. This map does not impose the feedback-specific access floor. The non-responsive family is represented by a fixed instruction
+
+\[
+\theta_t=\Gamma_t^{\mathrm{phys}}(\vartheta^F;R_t),
+\qquad \vartheta^F=(q^F,\mu^{y,F}),
+\qquad t=1,\ldots,T,
+\tag{9}
+\]
+
+or, more generally, a predetermined intraday instruction pattern that is not revised in response to realized queues. The executed confirmation count can still fall below \(q^F\) when fewer requests are available; this mechanical truncation is not state feedback.
+
+The predictive-planning family is anchored by predict-then-optimize (PTO), which serves as the strong planning benchmark. PTO follows the predictive-to-prescriptive logic of selecting a decision through an estimated model of uncertain outcomes~\citep{BertsimasKallus2020PrescriptiveAnalytics,ElmachtoubGrigas2022SmartPTO}. Before operations begin, the terminal selects an appointment--capacity plan using a probabilistic model of demand, compliance, service times, and available capacity. In the model-fidelity stress test, the selected pair is maintained throughout the evaluation horizon without re-estimating capacity from realized completions. We call this experimental benchmark \emph{fixed-pair no-reidentification PTO}; periodically re-solved fixed-pair policies remain members of the same planning family and are evaluated in a separate reconstruction. Let \(\vartheta_t=(q_t,\mu_t^y)\) denote a planned appointment quota and yard-capacity instruction, and let
+
+\[
+u=(\vartheta_1,\ldots,\vartheta_T)\in\mathcal U
+\]
+
+be an open-loop appointment-capacity plan. Request availability induces the execution map
+
+\[
+\chi(\vartheta_t,R_t)
+=\Gamma_t^{\mathrm{phys}}(\vartheta_t;R_t)
+=\theta_t.
+\]
+
+This mechanical execution makes the realized action physically feasible without using gate or yard queues and without imposing the feedback-specific access floor. PTO uses a belief model \(\widehat{\mathcal M}\) for demand, compliance, service times, and capacity, and solves
+
+\[
+u^{\mathrm{PTO}}
+\in\arg\min_{u\in\mathcal U}\widehat J(u),
+\qquad
+\widehat J(u)=
+\mathbb E_{\widehat{\mathcal M}}
+\left[
+\frac{1}{T-t_{\mathrm w}}
+\sum_{t=t_{\mathrm w}+1}^{T}
+c_t\bigl(\Xi_t,\chi(\vartheta_t,R_t),\omega_t\bigr)
+\right].
+\tag{10}
+\]
+
+The general plan class in Eq.~(10) may vary across the day, but it is open-loop because execution is not revised using realized gate and yard queues. The computational study uses the narrower finite subclass
+
+\[
+\mathcal U_{\mathrm{pair}}
+=\left\{u_{\vartheta}=(\vartheta,\ldots,\vartheta):
+\vartheta\in\Theta^{\mathrm{cand}}\right\}
+\subseteq\mathcal U,
+\]
+
+where \(\vartheta=(q,\mu^y)\) specifies one intended appointment quota and yard-capacity level. The high-fidelity benchmark enumerates this fixed-pair candidate class by finite Monte Carlo simulation under the true data-generating model, selects the pair with the lowest estimated expected cost, and then evaluates that pair out of sample. It is therefore a high-fidelity Monte Carlo-selected fixed-pair benchmark, not an exact optimizer for either \(\mathcal U_{\mathrm{pair}}\) or the full time-varying class \(\mathcal U\). Lower-fidelity fixed-pair PTO applies the same restricted selection procedure after the service and compliance inputs are distorted and then maintains the selected pair during evaluation. The severe-error reconstruction also re-solves only over \(\mathcal U_{\mathrm{pair}}\). These comparisons isolate model maintenance within the implemented candidate class; they do not evaluate a time-varying intraday PTO plan.
+
+The workload-feedback family is anchored by fast workload-responsive correction. It does not reconstruct the full joint distribution of arrivals, compliance, and service before acting. Instead, it shifts new appointment confirmations and yard capacity when observed queues indicate an accumulated flow imbalance. Its instruction is passed through a feedback execution map \(\Gamma_t^{\mathrm{FB}}\), which applies the physical map and then enforces Eq.~(5), so the resulting action belongs to \(\Theta_t^{\mathrm{FB}}\). This policy uses more execution-time information than fixed-pair no-reidentification PTO because it observes realized queue states, and it operates under an additional access constraint. It therefore requires observable workload signals, meaningful feedback signs, feasible corrective authority, and sufficient capacity for corrective actions to matter. The paired-perturbation tracker introduced later changes the operating center but is not part of the core definition.
+
+This information structure permits a documented plan or operating rule to supply the physical baseline while queue feedback corrects departures from it. In the computational study, the predictive-planning variants isolate model fidelity and re-solving cadence; the feedback variants isolate whether the optional tracker is enabled.
+
+\subsection{Workload-level feedback design}
+\label{subsec:4-2-workload-level-feedback-design}
+
+The fast layer answers an immediate operational question: how should the terminal move today's instruction when the realized system is no longer following the planned path? Workload levels retain accumulated imbalance that a single-window flow can hide. The gate signal uses the waiting queue \(Q_t^g\), while the yard signal uses total unfinished workload \(N_t^y=Q_t^y+I_t^y\):
+
+\[
+p_t^g=\operatorname{clip}\left(\frac{Q_t^g}{\kappa_g},0,\overline p_g\right),
+\tag{11}
+\]
+
+and
+
+\[
+p_t^y=\operatorname{clip}\left(
+\frac{Q_t^y+I_t^y}{\kappa_y},0,\overline p_y
+\right),
+\tag{12}
+\]
+
+where \(I_t^y\) is the number of trucks currently in yard service. In the implemented one-truck-per-unit service model, it equals the number of busy yard units, so \(Q_t^y+I_t^y\) has the physical meaning ``trucks waiting or in service.'' The constants \(\kappa_g\) and \(\kappa_y\) scale the two signals, and clipping prevents an extreme observation from generating an unbounded action change. The diagnostic feedback vector is
+
+\[
+F_t=
+\begin{pmatrix}
+p_t^g\\
+p_t^y
+\end{pmatrix}.
+\tag{13}
+\]
+
+Let \(z^0=(z^{0,a},z^{0,y})\in[0,1]^2\) be an externally specified normalized operating center whose coordinates index the nominal confirmation-instruction and yard-capacity ranges. The center is a required policy input rather than an output of fast correction. An implementation may obtain it from a maintained predictive plan, a standard operating rule, or another documented baseline; its source and numerical value are part of the policy specification. The corresponding nominal physical instruction is
+
+\[
+\Psi(z)=
+\begin{pmatrix}
+\underline a+z^a(\overline a-\underline a)\\
+\underline\mu^y+z^y(\overline\mu^y-\underline\mu^y)
+\end{pmatrix}.
+\tag{14}
+\]
+
+A workload correction of the form
+
+\[
+b(F_t)=
+\begin{pmatrix}
+-k_{gg}p_t^g-k_{gy}p_t^y\\
+k_{yg}p_t^g+k_{yy}(p_t^y-p_y^0)
+\end{pmatrix}
+\tag{15}
+\]
+
+implements the desired operational signs. Gate and yard pressure both reduce the normalized appointment component. Yard pressure raises the normalized yard-capacity component, whereas low yard pressure allows capacity to return toward a less resource-intensive level. Gate pressure can also raise yard capacity because clearing the gate will soon generate downstream work.
+
+The numerical implementation uses \(\kappa_g=\kappa_y=20\), \(\overline p_g=\overline p_y=1.5\), and
+
+\[
+k_{gg}=0.18,\quad
+k_{gy}=0.28,\quad
+k_{yg}=0.08,\quad
+k_{yy}=0.45,\quad
+p_y^0=0.20.
+\tag{16}
+\]
+
+These coefficients are design gains rather than estimates of a physical law. Their purpose is to encode a transparent feedback direction. The appointment response is stronger to yard pressure than to gate pressure because downstream congestion cannot be removed by gate processing alone, while yard capacity rises above a low workload reference. The present evidence does not identify an optimal gain vector. A separate queue-only reference diagnostic scales the gains between 0.5 and 1.5; it is a limited design check rather than validation of Eq.~(12) or terminal-specific calibration.
+
+Appointment-access protection is not introduced as a third control. The implemented action vector remains two-dimensional. Access is represented by the floor in Eq.~(5), the unconfirmed-request term in Eq.~(3), and separate reporting of confirmation, throughput, and unconfirmed requests. These devices protect the opportunity to obtain an appointment; they do not impose a completion or waiting-time guarantee.
+
+The core state-responsive instruction is \(\Psi(z^0+b(F_t))\); \(\Gamma_t^{\mathrm{FB}}\) then applies physical truncation, integer rounding, and the appointment-access floor. The normalized operating center \(z^0\) is an externally supplied baseline input rather than an estimate inferred from \(F_t\), while \(b(F_t)\) supplies the execution-time correction. The optional tracker below replaces \(z^0\) by an updated sequence \(z_n\).
+
+\subsection{Optional sequential paired-perturbation tracker and safe execution}
+\label{subsec:4-3-paired-perturbation-adaptation-and-safe-execution}
+
+The optional paired-perturbation tracker asks which normalized operating center the fast correction should use. Starting from the documented input \(z_0=z^0\), it updates the center from two sequential one-window performance observations. This target is not the remaining-horizon objective in Eq.~(4): it is the realized window cost observed after each perturbed action. Because the two actions are executed in consecutive windows rather than from cloned system states, their cost difference is a directional adaptation score, not an unbiased central finite-difference gradient of a fixed objective. Appointment consequences can also extend beyond the observation window through late arrivals and subsequent queues.
+
+At iteration \(n\), the policy selects coordinate \(i_n\in\{1,2\}\). Let \(e_{i_n}\) denote the associated unit vector, let \(s\in\{-1,+1\}\), and let \(\delta_n>0\) be the perturbation radius. A normalized candidate is
+
+\[
+\widetilde z_{n,s,t}
+=z_n+s\delta_ne_{i_n}+b(F_t).
+\tag{17}
+\]
+
+The operational action is
+
+\[
+\theta_{n,s,t}
+=\Gamma_t^{\mathrm{FB}}
+\left(\Psi\left(\Pi_{[0,1]^2}(\widetilde z_{n,s,t})\right);R_t\right),
+\tag{18}
+\]
+
+where \(\Pi_{[0,1]^2}\) clips the normalized candidate and \(\Gamma_t^{\mathrm{FB}}\) supplies the safe execution map. Let \(\ell_{n,-}\) and \(\ell_{n,+}\) be the realized weighted costs accumulated during the two consecutive decision windows after the negative and positive actions are implemented. The signed paired-perturbation score is
+
+\[
+\widehat d_n
+=\frac{\ell_{n,+}-\ell_{n,-}}{2\delta_n}e_{i_n}.
+\tag{19}
+\]
+
+The normalization by \(2\delta_n\) records the intended separation before clipping and the integer execution mapping. It does not restore a gradient interpretation when the executable actions have unequal spacing or coincide. The score can also contain state-evolution, fixed-order, adjustment-cost, and fast-feedback effects because \(S_t\) and \(F_t\) change between the two windows. These effects are treated as implementation bias rather than as zero-mean sampling noise.
+
+The normalized center is updated according to
+
+\[
+z_{n+1}
+=\Pi_{[0,1]^2}
+\left(z_n-\eta_n\widehat d_n\right),
+\tag{20}
+\]
+
+where \(\eta_n\) is a diminishing learning rate. The implemented schedules are
+
+\[
+\eta_n=\eta_0(n+1)^{-0.6}
+\tag{21}
+\]
+
+and
+
+\[
+\delta_n=\max\{\delta_{\min},\delta_0(n+1)^{-1/3}\}.
+\tag{22}
+\]
+
+The positive perturbation floor \(\delta_{\min}\) prevents the nominal perturbation from vanishing. It may reduce, but cannot eliminate, coincident executed actions, especially for the discrete capacity coordinate. A complete implementation must also pre-specify the coordinate sequence \(\{i_n\}\), the first paired window, the fixed negative--positive execution order, the warm-up update rule, and the treatment of coincident actions. The available vehicle-level archive does not retain those settings. The update is therefore presented as a bounded tracking-heuristic class, while the original fast-plus-tracker results remain conditional on an incompletely archived instance. No convergence of \(\{z_n\}\), stabilization of the integer actions, or closed-loop queue stability is claimed.
+
+When the optional tracker is enabled, its operational procedure is as follows.
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt,topsep=3pt]
+\item Choose and record a feasible physical baseline \(\theta^0=(a^0,\mu^{y,0})\), and initialize the normalized operating center as \(z_0=z^0=\Psi^{-1}(\theta^0)\).
+\item Observe the gate queue, yard queue, trucks in service, outstanding appointment cohorts, recent requests and arrivals, and the previous action.
+\item Compute the fast workload correction in Eq.~(15).
+\item Perturb one coordinate of the normalized operating center, convert the candidate to a physical action, and enforce the safe feasible set.
+\item Observe the realized one-window cost, apply the opposite perturbation in the next window, and observe the second cost.
+\item Form the signed score in Eq.~(19), update the center using Eq.~(20), and select the next coordinate.
+\item Repeat while reporting waiting, throughput, confirmation, resource use, and tail congestion separately.
+\end{enumerate}
+
+The update is motivated by two-point stochastic approximation and online queue learning~\citep{RobbinsMonro1951StochasticApproximation,KushnerYin2003StochasticApproximation,ChenHongLiu2026QueueLearning}, but its sequential implementation does not satisfy the standard same-objective central-difference construction. Its operational role is narrower: it perturbs a low-dimensional baseline while the fast layer responds directly to workload and the execution map enforces feasible appointment and integer-capacity actions.
+
+The methodological contribution consequently lies in the coupled gate--yard correction architecture rather than in a new finite-difference convergence result. The confirmation decision changes a future arrival pipeline, gate completions feed the downstream yard, and access outcomes must be reported with queue costs. The fast layer implements this operational coupling and constitutes the core method. The paired-perturbation tracker remains an optional extension, and its value is judged relative to the fast-only ablation rather than assumed from Eq.~(19).
+
+\section{Conditional mechanism and model-fidelity properties}
+\label{sec:analytical-properties}
+
+This section uses two accounting observations and five conditional results to clarify the mechanism; it does not present a solution to the complete terminal control problem. The sequence follows the reader's causal path: appointment uncertainty, gate-to-yard flow, local response information, PTO model fidelity, and safe execution.
+
+\subsection{Structural properties of the gate--yard map}
+\label{subsec:5-1-structural-properties-of-the-gate-yard-map}
+
+\noindent\textbf{Observation 1 (confirmation does not determine realized arrivals).} Suppose that
+
+\[
+\operatorname{Var}(A_t\mid a_t,H_t,C_t,E_t)
+=\sigma_t^2(a_t,H_t,C_t,E_t)>0.
+\]
+
+Then realized arrivals are not conditionally deterministic after the current decision and observable appointment pipeline are fixed. In particular, there is no deterministic function of \(a_t\), \(H_t\), \(C_t\), and \(E_t\) that equals \(A_t\) almost surely.
+
+Positive conditional variance rules out a deterministic mapping from the observed confirmation state to physical arrivals. A plan can regulate the arrival distribution, but it cannot eliminate no-shows, timing shifts, exception arrivals, or other compliance variation.
+
+\noindent\textbf{Observation 2 (gate-to-yard workload propagation).} Equation~(2) gives the exact accounting identity
+
+\[
+N_{t+1}^y-N_t^y=D_t^g-D_t^y.
+\tag{23}
+\]
+
+Hence \(D_t^g>D_t^y\) implies \(N_{t+1}^y>N_t^y\). Because actual completions satisfy \(D_t^y\le Y_t(\mu_t^y)\), the stronger condition \(D_t^g>Y_t(\mu_t^y)\) is sufficient, but not necessary, for yard workload to increase.
+
+This accounting result does not imply that every gate-only intervention makes the yard worse than a fixed rule. It says only that realized gate output in excess of realized yard completions increases unfinished yard workload; potential capacity supplies an upper-bound comparison. Because \(I_t^y\) is bounded by the number of active units, persistent linear growth in \(N_t^y=Q_t^y+I_t^y\) also implies persistent growth in the waiting queue. The present evidence cannot isolate the marginal value of joint gate--yard authority because it does not hold the feedback architecture fixed while changing only that authority.
+
+\subsection{Feedback identifiability and conditional queue-drift comparison}
+\label{subsec:5-2-feedback-identifiability-and-queue-drift-correction}
+
+For feedback to assign corrective action to the appropriate operational lever, the next observed workload must respond distinguishably to appointment confirmation and yard capacity. Fix a predecision summary \(s\) and define the continuous-relaxation response map
+
+\[
+\overline F^{+}(s,\theta)
+=\mathbb E[F_{t+1}\mid S_t=s,\theta_t=\theta]
+\]
+
+under a locally stationary operating regime. This one-step-ahead definition respects the decision clock: \(F_t\) is observed before \(\theta_t\) is chosen. Let \(F^\star\) be a desired workload target. A balanced point satisfies
+
+\[
+\overline F^{+}(s^\star,\theta^\star)=F^\star.
+\tag{24}
+\]
+
+\noindent\textbf{Proposition 1 (local one-step response identifiability).} Suppose that \(\overline F^{+}(s^\star,\cdot):\mathbb R^2\rightarrow\mathbb R^2\) is continuously differentiable in a neighborhood of an interior continuous-relaxation point \(\theta^\star\) satisfying Eq.~(24), and that its action Jacobian
+
+\[
+J_F(\theta^\star)
+=\frac{\partial\overline F^{+}(s^\star,\theta)}{\partial\theta^{\mathsf T}}
+\bigg|_{\theta=\theta^\star}
+\]
+
+is nonsingular. Then there are neighborhoods of \(\theta^\star\) and \(F^\star\) in which the relaxed action producing a given next-window mean feedback vector is locally unique and continuously dependent on that vector.
+
+The proposition gives a precise local interpretation to ``informative feedback.'' If the two actions have indistinguishable next-window effects, the Jacobian is singular or poorly conditioned. The result applies only before the clipping, rounding, and safe-execution operations in Eq.~(18). It neither verifies the hand-set gains in Eq.~(16) nor proves that the implemented rule reduces cost. \ref{app:proofs} records the inverse-function argument.
+
+We next state the direct queueing benefit that can be obtained when the feedback signs are operationally valid.
+
+\noindent\textbf{Proposition 2 (conditional reduction in yard-backlog drift).} Fix the same full predecision state \(\Xi_t=\xi\) for two counterfactual actions and evaluate both under the same conditional law of within-window exogenous events. Define the expected realized input--service imbalance
+
+\[
+\Delta_t^{\pi}(\xi)
+=\mathbb E\!\left[
+D_t^{g,\pi}-D_t^{y,\pi}
+\mid \Xi_t=\xi,\theta_t=\theta_t^{\pi}
+\right],
+\qquad \pi\in\{\mathrm{PTO},\mathrm{FB}\}.
+\]
+
+Suppose \(\Delta_t^{\mathrm{PTO}}(\xi)>0\) and the feedback action satisfies
+
+\[
+\Delta_t^{\mathrm{FB}}(\xi)
+\le\Delta_t^{\mathrm{PTO}}(\xi)-\gamma
+\]
+
+for some \(\gamma>0\). Then
+
+\[
+\mathbb E[N_{t+1}^{y,\mathrm{FB}}-N_t^y\mid \Xi_t=\xi]
+\le
+\mathbb E[N_{t+1}^{y,\mathrm{PTO}}-N_t^y\mid \Xi_t=\xi]-\gamma.
+\tag{25}
+\]
+
+If \(\Delta_t^{\mathrm{FB}}(\xi)\le0\), the feedback action removes positive expected unfinished-yard-workload drift for that window.
+
+Conditioning on \(\Xi_t\) fixes the residual-service state for the counterfactual comparison; it does not give the controller information beyond the compressed summary \(S_t\). The condition in Proposition 2 is substantive: the feedback action must reduce upstream pressure, increase realized downstream completions, or do both. Resource and access costs may offset the backlog improvement, so overall performance remains an empirical question. \ref{app:proofs} verifies the one-step comparison.
+
+The paired score does not define an estimable stochastic-approximation mean field in the present evidence. Conditional on the information before pair \(n\), its deviation from any chosen reference field can always be partitioned into centered noise and conditional bias, but that accounting identity supplies no convergence argument. Here the bias includes state evolution, fixed perturbation order, changes in fast feedback, adjustment-cost asymmetry, finite perturbations, clipping, and the integer execution mapping. Standard projected stochastic approximation would require additional conditions that are neither imposed nor verified~\citep{KushnerYin2003StochasticApproximation,Borkar2008StochasticApproximation}.
+
+\subsection{Model-fidelity and simulation-selection bounds for PTO}
+\label{subsec:5-3-model-fidelity-bounds-for-pto}
+
+Let \(J(u)\) be the expected cost of open-loop plan \(u\) under the true operating environment and \(\widehat J(u)\) its expected cost under the PTO belief model. Define the uniform model-induced cost error over the candidate plan class as
+
+\[
+\Delta_{\mathcal U}
+=\sup_{u\in\mathcal U}|J(u)-\widehat J(u)|.
+\tag{26}
+\]
+
+\noindent\textbf{Proposition 3 (high-fidelity PTO optimality within the open-loop class).} If
+
+\[
+J(u)=\widehat J(u),
+\qquad\forall u\in\mathcal U,
+\]
+
+and
+
+\[
+u^{\mathrm{PTO}}\in
+\arg\min_{u\in\mathcal U}\widehat J(u),
+\]
+
+then
+
+\[
+J(u^{\mathrm{PTO}})\le J(u),
+\qquad\forall u\in\mathcal U.
+\tag{27}
+\]
+
+This proposition identifies the population-objective benchmark. It is optimal within the specified open-loop plan class when the planning model reproduces true plan costs. Taking \(\mathcal U=\mathcal U_{\mathrm{pair}}\) gives the ideal fixed-pair specialization, but the implemented benchmark estimates plan costs by finite Monte Carlo simulation and therefore approximates this optimizer. Neither result establishes optimality over the full time-varying class in Eq.~(10) or over closed-loop state-feedback policies outside \(\mathcal U\). \ref{app:proofs} records the direct argument.
+
+\noindent\textbf{Proposition 4 (PTO model-fidelity and finite-sample selection bounds).} Let
+
+\[
+u^{\mathrm{PTO}}
+\in\arg\min_{u\in\mathcal U}\widehat J(u),
+\qquad
+u^*\in\arg\min_{u\in\mathcal U}J(u),
+\]
+
+and suppose \(\Delta_{\mathcal U}<\infty\). Then
+
+\[
+J(u^{\mathrm{PTO}})-J(u^*)
+\le2\Delta_{\mathcal U}.
+\tag{28}
+\]
+
+For the finite-simulation selector, let \(\widetilde J_N(u)\) be the Monte Carlo estimate of \(\widehat J(u)\) based on planning sample size \(N\), and let
+
+\[
+u_N^{\mathrm{MC}}
+\in\arg\min_{u\in\mathcal U}\widetilde J_N(u).
+\]
+
+On any event for which
+
+\[
+\sup_{u\in\mathcal U}
+\left|\widetilde J_N(u)-\widehat J(u)\right|
+\le\varepsilon_N,
+\]
+
+the selected plan satisfies
+
+\[
+J(u_N^{\mathrm{MC}})-J(u^*)
+\le2\Delta_{\mathcal U}+2\varepsilon_N.
+\tag{28a}
+\]
+
+Equations~(28)--(28a) separate model error from finite planning-sample error. When both are small, true suboptimality within the specified class is controlled; neither bound prevents a ranking reversal when the errors are large. The model-fidelity experiment in Section~\ref{subsec:6-4-pto-model-fidelity-and-the-value-of-feedback-correction} illustrates this mechanism within \(\mathcal U_{\mathrm{pair}}\), but the archived vehicle-level study does not retain the planning budget, seeds, or a concentration calculation. Equation~(28a) is therefore a conditional deterministic bound, not a numerical confidence guarantee for the reported benchmark. \ref{app:proofs} gives both comparisons.
+
+\noindent\textbf{Proposition 5 (persistent realized completion imbalance under a maintained PTO instruction).} Suppose a fixed-pair PTO instruction, possibly selected under an overestimated yard-capacity model, is maintained during the \(K\)-window comparison without online re-estimation or re-solving from realized completions. If the induced executed actions satisfy
+
+\[
+\mathbb E[D_t^{g,\mathrm{PTO}}-D_t^{y,\mathrm{PTO}}]
+\ge\delta>0,
+\tag{29}
+\]
+
+then
+
+\[
+\mathbb E[N_{t+1}^y-N_t^y]\ge\delta.
+\tag{30}
+\]
+
+If the analogous condition holds in each of \(K\) consecutive windows under the maintained instruction, then
+
+\[
+\mathbb E[N_{t+K}^y-N_t^y]\ge K\delta.
+\tag{31}
+\]
+
+Proposition 5 does not derive Eq.~(29) from capacity overestimation. It states the queue consequence once a maintained instruction induces realized gate output above realized yard completions. Because \(D_t^{y,\mathrm{PTO}}\le Y_t(\mu_t^{y,\mathrm{PTO}})\), the stronger condition \(\mathbb E[D_t^{g,\mathrm{PTO}}-Y_t(\mu_t^{y,\mathrm{PTO}})]\ge\delta\) is sufficient, but not necessary, for Eq.~(29). Capacity overestimation is one possible antecedent of this imbalance. Re-identification matters because it may change the executed action and terminate Eq.~(29); the proposition does not claim that lack of re-identification is a logically necessary cause of drift. \ref{app:proofs} gives the one-window and cumulative arguments.
+
+\subsection{Safe feasibility and limits of the analytical claim}
+\label{subsec:5-4-safe-feasibility-and-limits-of-the-analytical-claim}
+
+The implemented execution map supplies the final operational guardrail. Let \(\Theta_t^{\mathrm{FB},d}\) denote the implementable subset of \(\Theta_t^{\mathrm{FB}}\) after the prescribed integer appointment and discrete-capacity mappings. For any raw physical instruction \(v_t\), the executed feedback action is
+
+\[
+\theta_t
+=\Gamma_t^{\mathrm{FB}}(v_t;R_t)
+\in\Theta_t^{\mathrm{FB},d},
+\tag{32}
+\]
+
+provided that the joint feasible set is nonempty. The map truncates confirmations by current request availability and the physical appointment cap, clips capacity to available levels, applies the pre-specified deterministic integer mapping, and enforces the compatible appointment-access floor in Eq.~(5). Feasibility therefore follows from the construction of the executed map; Eq.~(32) makes no nearest-Euclidean-point claim.
+
+The execution map ensures action feasibility, not queue stability or economic optimality. Those outcomes additionally require sufficient capacity, a valid feedback direction, acceptable resource and adjustment costs, and the appointment-access safeguard. \ref{app:proofs} records the membership argument. The analysis consequently supports the following conditional interpretation.
+
+First, the ideal high-fidelity PTO optimizer is optimal within its specified open-loop class; the implemented fixed-pair benchmark inherits that interpretation only up to the finite Monte Carlo selection error in Eq.~(28a). Second, as model fidelity deteriorates, the open-loop guarantee weakens and a maintained instruction can produce positive downstream drift when realized gate output persistently exceeds realized yard completions. Third, a feedback action reduces that drift only when it actually lowers the realized input--service imbalance; resource use and appointment access must still be evaluated. Fourth, local response identifiability does not validate the selected gains, and the paired tracker has no established convergence guarantee.
+
+These boundaries are central to the paper's contribution. The proposed method is valuable not because it defeats perfect predictive planning by assumption, but because port operations are exposed to compliance variation, service-time uncertainty, capacity disruptions, and evolving workload conditions. Feedback coordination supplies a transparent correction mechanism when the realized service ecosystem departs from the model on which the plan was based.
+
+These results determine the order of the computational study. The experiments first compare representatives of the three policy families against the implemented fixed-pair PTO benchmark, then isolate model fidelity and re-identification cadence, and finally examine appointment access and design sensitivity. This sequence tests when the restricted high-fidelity PTO benchmark remains strong and when delayed model updating creates a role for workload-responsive correction.
+
+\section{Computational study: public-data-calibrated experiments and mechanism diagnostics}
+\label{sec:computational-study}
+
+The computational study separates public-data-calibrated comparisons from independent mechanism diagnostics. The fixed rule represents non-responsive operation. High-fidelity and misspecified fixed-pair PTO represent predictive planning, while a separate reconstruction evaluates periodically re-solved fixed-pair PTO. The feedback variants are fast-only correction and fast-plus-tracker feedback.
+
+We label the calibration block E0 and the three policy experiments E1--E3. E0 separates calibrated inputs from simulation assumptions. E1 compares the three policy families under high-fidelity information and immediately asks whether the optional tracker improves fast correction. E2 then degrades only the PTO belief and follows the stress test with a separate aggregate reconstruction of re-identification cadence and feedback-component choice. E3 examines appointment access, followed by an independent gain--lateness diagnostic. Each block has a distinct evidentiary role and data-generating pipeline.
+
+\subsection{Data sources and calibration logic}
+\label{subsec:6-1-data-sources-and-calibration-logic}
+
+The calibrated E0--E3 branch uses public operational records to discipline the demand, compliance, service, and disruption mechanisms of the simulation; the gain--lateness analysis uses an independent aggregate reference implementation. The calibrated branch does not reconstruct a complete truck-level appointment--arrival--gate--yard trajectory. Instead, several complementary sources calibrate quantities observed at different levels of port operations. SC Ports publishes gate missions, transactions, turn times, crane productivity, vessel calls, pier moves, and related operating metrics~\citep{SCPortsMetrics2026}. Port of Virginia weekly dashboards report reservation moves, missed reservations, reservation shares, and turn-time measures~\citep{PortVirginiaStatistics2026}. Port Houston terminal-status reports provide completed transactions, truck turn times, yard utilization, and import-dwell indicators~\citep{PortHoustonStatus2026}. Public Mendeley datasets supply truck-appointment instances, capacity-management instances, and container-terminal event logs~\citep{HuynhEtAl2018TASData,MarOrtiz2020CapacityData,PrasetyoEtAl2023EventLog}. Table~\ref{tab:calibration-audit} states what each source contributes and, equally important, what it cannot identify.
+
+\begin{table*}[htbp]
+\centering
+\caption{Calibration audit: evidence used to discipline the simulation.}
+\label{tab:calibration-audit}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+Evidence source & Observable scale & Role in the simulation & Limitation \tabularnewline
+\midrule
+SC Ports operational records & Daily gate missions and terminal performance indicators & Anchor the reference workload and the low-to-peak demand multipliers & Aggregate records do not link individual appointments, arrivals, and yard services \tabularnewline
+Port of Virginia weekly reports & Reservation moves, missed reservations, reservation shares, and turn times & Discipline appointment appearance and non-compliance assumptions & Weekly aggregation masks intraday compliance patterns and terminal heterogeneity \tabularnewline
+Port Houston terminal reports & Turn times, yard utilization, dwell, and reported disruptions & Anchor yard-pressure and capacity-disruption mechanisms & Yard utilization is a system-level proxy rather than vehicle-level service capacity \tabularnewline
+Public benchmark and event-log datasets & Appointment-capacity instances and truck-in, truck-out, stack, and unstack events & Support feasible ranges and the gate-to-yard process sequence & Research datasets do not identify counterfactual outcomes under the tested policies \tabularnewline
+Simulation design assumptions & Decision-window length, confirmation cutoff, intraday lateness split, service-time distributions, server counts, and action bounds & Complete the vehicle-level stochastic environment where public records are silent & These values support mechanism analysis and are not terminal-specific estimates \tabularnewline
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+E0 is the calibration step. It converts these observations into four workload scenarios. The median SC Ports day is used as the reference demand level; the low, high, and peak days scale that reference. The observed missed-reservation evidence is represented by a 4\% missed-reservation rate, the Port Houston reports provide an approximate 38.9\% yard-utilization reference, and the affected-window disruption probability is set to approximately 6.1\%. Table~\ref{tab:calibration-scenarios} summarizes the resulting scenarios. The 0.989--1.069 workload multipliers describe a narrow calibrated operating range rather than a broad demand stress envelope; E2 supplies the separate model-fidelity stress test. Tables~\ref{tab:calibration-audit}--\ref{tab:parameter-setting} distinguish public-data anchors and calibrated proxies from simulation design assumptions.
+
+\begin{table}[htbp]
+\centering
+\caption{Public-data-calibrated workload scenarios used in calibration and the high-fidelity policy comparison.}
+\label{tab:calibration-scenarios}
+\footnotesize
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrr@{}}
+\toprule
+Scenario & Missions & Multiplier & Requests/window & Disruption \\
+\midrule
+Low    & 5,961 & 0.989 & 22.75 & 0.061 \\
+Median & 6,026 & 1.000 & 23.00 & 0.061 \\
+High   & 6,401 & 1.062 & 24.43 & 0.061 \\
+Peak   & 6,444 & 1.069 & 24.60 & 0.061 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+No single public dataset contains every layer of the modeled process, so the calibration combines sources. SC Ports anchors workload variation; Port of Virginia anchors reservation compliance; Port Houston anchors yard pressure and disruption; and the benchmark and event-log data support capacity ranges and the gate--yard process sequence. The combined evidence improves operational plausibility but does not remove the limitations of aggregate data. The appropriate interpretation is external calibration and mechanism-oriented stress testing, not causal evaluation of a policy deployed at a specific terminal.
+
+\subsection{Simulation design, policy variants, and statistical comparison}
+\label{subsec:6-2-simulation-design-policies-and-statistical-comparison}
+
+The vehicle-level discrete-event simulation uses 30-minute decision windows over a 30-day horizon, with the first seven days treated as warm-up. The base appointment-outcome probabilities are 0.80 on time, 0.13 one window late, 0.03 two windows late, and 0.04 no-show. The aggregate reservation reports discipline the 0.04 missed-reservation share; they do not identify the 0.80/0.13/0.03 intraday split or the two-window support. Those quantities are therefore simulation design assumptions. Exception arrivals enter independently. Gate and yard service times are lognormal, and a disruption reduces effective yard capacity for the affected window. Tables~\ref{tab:parameter-setting} and~\ref{tab:policy-setting} consolidate the parameter values, units, and evidentiary status so that calibrated inputs are not confused with design assumptions.
+
+\begin{table*}[htbp]
+\centering
+\caption{Core simulation parameters. ``Calibrated proxy'' denotes a value disciplined by aggregate public evidence but not identified from a complete terminal-level trajectory.}
+\label{tab:parameter-setting}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{2.2cm}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}X}
+\toprule
+Component & Parameter & Value & Unit/status & Role or evidence \\
+\midrule
+Time scale & Window; horizon; warm-up & 30; 30; 7 & minutes; days; days / assumed & Decision frequency, horizon, and seven-day metric exclusion \\
+Gate service & Mean; coefficient of variation; lanes & 5; 0.35; 4 & minutes; ratio; lanes / assumed & Defines nominal gate processing capacity \\
+Yard service & Mean; coefficient of variation; active units & 10; 0.50; 6--10 & minutes; ratio; units / assumed & Creates the downstream capacity range \\
+Appointments & Quota range; missed-reservation probability & 12--30; 0.04 & trucks/window; probability & Action bounds; calibrated proxy from reservation reports \\
+Appointment timing & On time; late 1; late 2; no-show & 0.80; 0.13; 0.03; 0.04 & probabilities / mixed & Missed share is a calibrated proxy; intraday split is assumed \\
+Lateness support & Base \(L=2\); maximum lateness & 2; 60 & windows; minutes / assumed & Reference diagnostic also tests \(L=1\) and \(L=4\) \\
+Disruption & Affected-window probability & 0.061 & probability / calibrated proxy & Represents temporary effective-yard-capacity loss \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+\begin{table*}[htbp]
+\centering
+\caption{Policy and statistical parameters.}
+\label{tab:policy-setting}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}X}
+\toprule
+Component & Parameter & Value & Role \\
+\midrule
+Base cost & Weight vector & 0.30, 0.30, 0, 0.20, 0.10, 0.10 & Gate queue, yard queue, occupancy, resources, adjustment, and unconfirmed requests \\
+Access-loss sensitivity & Medium; high vectors & 0.25, 0.25, 0, 0.1667, 0.0833, 0.25; 0.20, 0.20, 0, 0.1333, 0.0667, 0.40 & Raises \(w_l\) and rescales non-occupancy weights proportionally \\
+Appointment access & \(\rho_{\min}\) & 0.85 & Feedback-specific minimum rolling confirmation fraction \\
+Fast-feedback scaling & \(\kappa_g,\kappa_y;\ \overline p_g,\overline p_y;\ p_y^0\) & 20, 20; 1.5, 1.5; 0.20 & Queue scaling, clipping, and yard reference \\
+Fast-feedback gains & \(k_{gg},k_{gy},k_{yg},k_{yy}\) & 0.18, 0.28, 0.08, 0.45 & Design gains used in Eq.~(16) \\
+Paired update & \(\eta_0,\delta_0,\delta_{\min}\) & 0.08, 0.10, 0.03 & Step size and perturbation sequence \\
+Reference-diagnostic center & \(z^0;\ \theta^0\) & \((0.50,0.60);\) nominal \((21,8)\) & Ex ante, planning-model-independent input used only in the two aggregate diagnostics \\
+Replication & High-fidelity and model-fidelity experiments; component diagnostic; access experiment & 50; 50; 12 & Common-random-number paired comparisons \\
+Inference & Main; expanded/diagnostic bootstrap & 2,000; 1,000 & Paired 95\% confidence intervals \\
+\bottomrule
+\end{tabularx}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} Weight vectors follow the order \(w_g,w_y,w_o,w_r,w_s,w_l\). The base cost sets \(w_o=0\). The reference-diagnostic center maps to \((21,8.4)\) before rounding and is not evidence of the unavailable vehicle-level initializer.
+\end{minipage}
+\end{table*}
+
+\begin{table*}[htbp]
+\centering
+\caption{Vehicle-level implementation items not retained in the present archive.}
+\label{tab:archive-closure}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}X}
+\toprule
+Item & Missing specification & Consequence \\
+\midrule
+Cost normalization & Exact maps \(\varphi_\cdot\) used in the primary vehicle-level experiments & Reported weighted costs cannot be regenerated \\
+Access history & \(W_R\) and pre-sample mean in Eq.~(5) & Original rolling floor cannot be replayed \\
+Tracker execution & Coordinate order, first pair, warm-up updating, and coincident-action rule & Optional tracker instance is incomplete \\
+Feedback baseline & Vehicle-level \(z^0\) and \(\theta^0\) & Primary vehicle-level experiments and the component diagnostic remain conditional on an unknown initializer \\
+Fixed baseline & Original \(\vartheta^F\) & Fixed-rule instruction in the high-fidelity comparison cannot be reconstructed \\
+Predict-then-optimize planning stage & Monte Carlo budget and deterministic tie-break & Reported finite-class selection cannot be replayed \\
+Randomization and outputs & Numerical seeds and raw vehicle-level replication files & Published tables and intervals cannot be independently regenerated \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+Within the archived vehicle-level comparisons, competing policies receive common random numbers for appointment requests, appearance outcomes, service times, exception arrivals, and disruptions. E1--E2 use fast-plus-tracker feedback, so their state-responsive results belong to that combined implementation. The original vehicle-level E2 pipeline does not evaluate fast-only correction, and its misspecification result is therefore not attributed to the fast component alone. A high-fidelity component diagnostic and the independent aggregate severe-error reconstruction compare fast-only with fast-plus-tracker feedback under their respective implementations; the reconstruction shares starting seeds but does not use event-indexed common-random-number paths. Performance is assessed using weighted cost, waiting, yard congestion, throughput, confirmation, unconfirmed requests, resource use, terminal backlog, and late-horizon queue drift.
+
+The available archive does not retain the numerical center \(z^0\) used by the original vehicle-level feedback runs. We therefore do not infer that value from either independent aggregate diagnostic. Both diagnostics use the ex ante center \(z^0=(0.50,0.60)\), which maps through Eq.~(14) to \((21,8.4)\) before the integer execution mapping and to \((21,8)\) after rounding. This diagnostic center is held fixed across its comparisons and is independent of the PTO belief model. The vehicle-level E1--E3 and component-diagnostic results remain conditional on their unrecovered initializer and do not establish robustness to alternative starting centers.
+
+\subsection{High-fidelity policy comparison and component choice}
+\label{subsec:6-3-main-policy-comparison-under-calibrated-workloads}
+
+E1 asks whether the evaluated fast-plus-tracker implementation improves on a non-responsive rule and how it compares with a high-fidelity fixed-pair planner. Averaged across the four calibrated workloads, its weighted cost is 81.8\% below the fixed rule, and mean total waiting falls from 175.6 to 15.8 minutes.
+
+\begin{table}[htbp]
+\centering
+\caption{E1: policy performance averaged across four public-data-calibrated workload scenarios.}
+\label{tab:e1-main-results}
+\footnotesize
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrr@{}}
+\toprule
+Policy & Cost & \makecell[r]{Mean wait\\(min)} & \makecell[r]{P95 wait\\(min)} & Throughput & Confirmation \\
+\midrule
+Fixed rule           & 2.168 & 175.6 & 278.1 & 0.912 & 0.929 \\
+Fast+tracker feedback & 0.394 &  15.8 &  39.9 & 0.883 & 0.898 \\
+Fixed-pair PTO       & 0.296 &   4.2 &  11.9 & 0.817 & 0.829 \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} PTO denotes predict-then-optimize; P95 denotes the 95th percentile.
+\end{minipage}
+\end{table}
+
+High-fidelity fixed-pair PTO has the lowest reported weighted cost and waiting among the tested representatives. This outcome is consistent with the benchmark role in Propositions 3--4, subject to the finite Monte Carlo selection error in Eq.~(28a). Part of its advantage comes from confirming fewer requests: fast-plus-tracker feedback has a 6.9 percentage-point higher confirmation rate and a 6.6 percentage-point higher throughput rate. E1 therefore establishes a comparison between the evaluated policy representatives, not a dominance ranking over policy families.
+
+The component diagnostic next asks whether the optional tracker improves fast correction under the same high-fidelity information structure. Fixed-pair PTO provides a planning reference; fast-only and fast-plus-tracker feedback share the direct correction rule and differ only in whether the tracker is enabled.
+
+\begin{table*}[htbp]
+\centering
+\caption{High-fidelity fixed-pair predict-then-optimize (PTO) and feedback-component diagnostic, 50 replications. This is not a misspecification test.}
+\label{tab:feedback-component-diagnostic}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llrr@{}}
+\toprule
+Scenario & Policy & Cost & P95 wait (min) \\
+\midrule
+High & Fixed-pair PTO & 0.306 & 13.9 \\
+High & Fast-only feedback & 0.381 & 41.5 \\
+High & Fast-plus-tracker feedback & 0.463 & 52.1 \\
+\midrule
+Peak & Fixed-pair PTO & 0.325 & 18.6 \\
+Peak & Fast-only feedback & 0.391 & 42.7 \\
+Peak & Fast-plus-tracker feedback & 0.492 & 53.9 \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} P95 denotes the 95th percentile. Entries are archived point estimates. The raw replication outputs and exact feedback initializer are unavailable, so a paired uncertainty interval cannot be reconstructed for this diagnostic.
+\end{minipage}
+\end{table*}
+
+Fixed-pair PTO has the lowest cost and P95 waiting in both scenarios. Enabling the paired tracker also raises both point estimates relative to fast-only correction. The reported point estimates therefore provide no evidence of incremental net benefit from the tracker in this diagnostic, and fast-only is the more parsimonious component choice under the tested high-fidelity conditions. This descriptive ordering is not extrapolated to the original E1--E2 vehicle-level pipeline; the independent aggregate severe-error reconstruction below provides a second, separately implemented component comparison.
+
+\subsection{Model misspecification and re-identification cadence}
+\label{subsec:6-4-pto-model-fidelity-and-the-value-of-feedback-correction}
+
+E2 asks what happens when a predictive planner maintains an outdated service model near the capacity boundary. The public-data-calibrated peak environment remains fixed; only the belief used by fixed-pair PTO changes. High fidelity uses unbiased request, compliance, and service-time factors. Mild misspecification multiplies assumed gate and yard service times by 0.90 and 0.88 and the appearance factor by 0.95; the corresponding factors are 0.75, 0.70, and 0.92 under medium misspecification and 0.58, 0.52, and 0.90 under severe misspecification. The archived study reports an exhaustive Monte Carlo search over its feasible fixed-pair class at each fidelity level, followed by evaluation in the unchanged true environment without re-identification. The fast-plus-tracker reference is held fixed and never receives the distorted PTO belief. Its unavailable initializer prevents a sensitivity analysis of the feedback starting point.
+
+E2 is a fixed-pair no-reidentification stress test for model maintenance, not a rolling-horizon or certainty-equivalent PTO using the same observations to update and re-solve. The subsequent reconstruction examines how re-identification cadence and the optional tracker change the severe-error mechanism in a separate aggregate pipeline.
+
+\begin{table*}[htbp]
+\centering
+\caption{E2: fixed-pair no-reidentification predict-then-optimize (PTO) model-fidelity stress test in the calibrated peak-workload environment. The feedback reference is fast-plus-tracker feedback. The paired cost difference is PTO minus feedback; a positive value favors feedback.}
+\label{tab:e2-fidelity-results}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrr@{}}
+\toprule
+PTO belief & PTO cost & \makecell[r]{Fast+tracker\\FB cost} & \makecell[r]{PTO P95\\(min)} & \makecell[r]{FB P95\\(min)} & \makecell[r]{PTO--FB cost\\and 95\% CI} \\
+\midrule
+High fidelity & 0.288 & 0.455 & 11.0 & 49.8 & \makecell[r]{$-0.167$\\$[-0.191,-0.145]$} \\
+Mild misspecification & 0.380 & 0.455 & 36.3 & 49.8 & \makecell[r]{$-0.075$\\$[-0.097,-0.054]$} \\
+Medium misspecification & 43.858 & 0.455 & 5,967 & 49.8 & \makecell[r]{$43.403$\\$[42.937,43.848]$} \\
+Severe misspecification & 85.372 & 0.455 & 11,601 & 49.8 & \makecell[r]{$84.918$\\$[84.430,85.385]$} \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} FB denotes feedback; P95 denotes the 95th percentile; CI denotes confidence interval.
+\end{minipage}
+\end{table*}
+
+Table~\ref{tab:e2-fidelity-results} identifies a clear fidelity-dependent ranking within this no-reidentification design. Under high fidelity, PTO has a lower cost estimate and its paired 95\% interval for PTO minus feedback lies below zero; the same pattern remains under mild misspecification, so a small model error does not reverse the ranking. The change occurs under medium misspecification: PTO cost rises to 43.858 and P95 waiting to 5,967 minutes, whereas feedback cost remains 0.455 and P95 waiting remains 49.8 minutes. Under severe misspecification, PTO cost reaches 85.372 and P95 waiting exceeds 11,600 minutes. The selected no-reidentification action admits trucks faster than the true yard can clear them; the resulting values do not describe adaptive PTO after capacity is re-estimated.
+
+The throughput results clarify this mechanism. Under medium misspecification, PTO confirms 95.7\% of requests and completes a throughput share of 86.8\%, yet a large unresolved queue accumulates. Under severe misspecification, PTO throughput falls to 71.9\%, compared with 86.3\% for the fast-plus-tracker reference. High confirmation is therefore not evidence of service clearance when planned capacity is overstated.
+
+The extreme P95 values are archived stress statistics, not ordinary port turn-time estimates. The available vehicle-level materials do not preserve the post-horizon drain or right-censoring rule used to construct them, so their exact statistical treatment cannot be audited. We therefore use them only as corroborating signs of unresolved congestion and do not interpret the 11,601-minute value as a service-level estimate. The following independent reconstruction reports terminal backlog and late-horizon drift directly, but its absolute values are not pooled with E2.
+
+\begin{figure*}[tbp]
+\centering
+\includegraphics[width=0.98\textwidth]{fig_model_fidelity_stress.pdf}
+\caption{Fixed-pair no-reidentification model-fidelity stress test. The true peak-workload environment is fixed while only the belief used to select the maintained predict-then-optimize (PTO) pair is degraded. The feedback series is the evaluated fast-plus-tracker reference; periodic re-identification is examined in a separate reconstruction. P95 denotes the 95th percentile.}
+\label{fig:model-fidelity-stress}
+\end{figure*}
+
+To examine response cadence and component choice, a separate reconstruction starts periodically re-solved fixed-pair PTO from the severe capacity-error factors imposed in E2 and evaluates fast-only and fast-plus-tracker feedback from the same documented center and gains. The initial gate- and yard-service-time beliefs equal 0.58 and 0.52 of their true means, respectively, and select the fixed pair \((24,6)\). At intervals of one, three, or seven days, each replication separately uses saturated windows since its preceding update to estimate the mean yard service time as \(\widehat s_y=30\sum_t m_t/\sum_t D_t^y\) minutes per truck, rounds that estimate to the nearest 0.5 minute, and re-solves over \(\mathcal U_{\mathrm{pair}}\). The gate belief remains at its initial error. These results come from an independent aggregate reference reconstruction rather than the vehicle-level E2 pipeline. They are interpreted only through cadence-dependent recovery and the within-reconstruction feedback comparison; their absolute values are not pooled with Table~\ref{tab:e2-fidelity-results}.
+
+Table~\ref{tab:e2-adaptive} and Figure~\ref{fig:e2-adaptive-recovery} report that pattern. Under reconstructed severe misspecification, fixed-pair no-reidentification PTO has weighted cost 73.71, terminal yard backlog near 7,940 trucks, and positive late-horizon drift of 5.51 trucks per window. Re-identifying yard capacity every one or three days removes more than 99\% of this reconstructed cost loss: weighted cost falls to 0.21--0.25 while terminal backlog drains below one truck. Fast-only feedback has cost 0.218, terminal backlog 3.0 trucks, and slightly negative late-horizon drift; fast-plus-tracker feedback has cost 0.232, backlog 4.4 trucks, and slightly positive drift. For fast-only minus fast-plus-tracker, the mean differences are \(-0.0139\) in cost, \(-1.402\) trucks in terminal backlog, and \(-0.00078\) trucks per window in late-horizon drift; the pointwise 95\% seed-block Student-\(t\) intervals in Table~\ref{tab:e2-adaptive} exclude zero. These exploratory intervals treat the 10 starting seeds as blocks rather than the 400 simulated paths as independent pairs, and the action-dependent draws are not event-indexed common random numbers. Both feedback specifications reduce the frozen plan's drift from 5.509 to within 0.001 trucks per window in magnitude; fast-plus-tracker nevertheless has higher block-mean values for all three tabled outcomes in this reconstruction. This seed-block comparison is not a quantitative continuation of E2 or a matched fast-only ablation in the original vehicle-level pipeline.
+
+With weekly updating, a large queue forms before the first correction, so accumulated weighted cost remains 5.48 even though the terminal queue eventually drains. Re-identification every three days or faster approaches the two feedback references in this reconstruction; the comparison does not establish an advantage over a promptly updated planner.
+
+\begin{table*}[htbp]
+\centering
+\caption{Severe-error reference diagnostic: recovery as a function of yard-capacity re-identification cadence. Independent aggregate reconstruction using the calibrated peak demand and the severe capacity-error factors from the model-fidelity experiment. Each policy summary is computed for 10 common-starting-seed blocks, with 40 vectorized simulated paths per policy and block.}
+\label{tab:e2-adaptive}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llrrr@{}}
+\toprule
+Setting & Policy & \makecell[r]{Weighted\\cost} & \makecell[r]{Terminal yard\\backlog} & \makecell[r]{Late-horizon\\drift} \\
+\midrule
+Severe error & \makecell[l]{No-reidentification\\fixed-pair PTO} & 73.710 & 7,940.2 & 5.509 \\
+Severe error & Fixed-pair PTO, 7-day update & 5.475 & 0.1 & $-0.0014$ \\
+Severe error & Fixed-pair PTO, 3-day update & 0.210 & 0.1 & 0.0000 \\
+Severe error & Fixed-pair PTO, 1-day update & 0.252 & 0.1 & 0.0000 \\
+\midrule
+Reference & Fast-only feedback & 0.218 & 3.0 & $-0.0001$ \\
+Reference & Fast-plus-tracker feedback & 0.232 & 4.4 & 0.0007 \\
+Reference & \makecell[l]{High-fidelity\\fixed-pair PTO} & 0.067 & 1.0 & 0.0000 \\
+\bottomrule
+\end{tabular*}
+\vspace{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrr@{}}
+\toprule
+\multicolumn{4}{l}{\textit{Fast-only minus fast-plus-tracker seed-block comparison}} \\
+& \makecell[r]{Weighted\\cost} & \makecell[r]{Terminal yard\\backlog} & \makecell[r]{Late-horizon\\drift} \\
+\midrule
+\makecell[l]{Mean difference\\Pointwise 95\% interval} & \makecell[r]{$-0.0139$\\$[-0.0161,-0.0117]$} & \makecell[r]{$-1.402$\\$[-2.574,-0.230]$} & \makecell[r]{$-0.00078$\\$[-0.00122,-0.00034]$} \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} PTO denotes predict-then-optimize. Backlog is in trucks. Drift is the ordinary-least-squares slope of the mean yard queue over the final 10 days, in trucks per window. The comparison row is fast-only minus fast-plus-tracker, so a negative value favors fast-only on the reported outcome. Brackets are pointwise two-sided 95\% Student-\(t\) intervals across 10 starting-seed-block differences (9 degrees of freedom); no multiplicity adjustment is applied. Each policy's block summary is computed from 40 vectorized simulated paths. Common starting seeds do not form event-indexed common-random-number paths. The intervals quantify Monte Carlo and starting-seed variability under this fixed aggregate reconstruction; they exclude model, calibration, parameter, and field uncertainty and are not an original vehicle-level E2 matched ablation.
+\end{minipage}
+\end{table*}
+
+\begin{figure*}[tbp]
+\centering
+\includegraphics[width=0.98\textwidth]{fig_e2_adaptive_recovery.pdf}
+\caption{Severe-error recovery by re-identification cadence. Weighted cost (left) and terminal yard backlog (right) decline sharply when the fixed-pair planner begins periodic re-identification; horizontal lines mark fast-only feedback, fast-plus-tracker feedback, and high-fidelity fixed-pair predict-then-optimize (PTO) within the same reconstruction. Values are not pooled with the vehicle-level model-fidelity results.}
+\label{fig:e2-adaptive-recovery}
+\end{figure*}
+
+\subsection{Appointment-access trade-offs and robustness checks}
+\label{subsec:6-6-appointment-access-and-robustness-checks}
+
+E3 asks whether low waiting partly reflects more restrictive appointment access. Under the current weights, fast-plus-tracker feedback confirms 88.6\% of high-workload requests and 88.1\% of peak-workload requests, compared with 82.7\% and 82.8\% for fixed-pair PTO. It leaves approximately 1,594 and 1,453 fewer requests unconfirmed, respectively. PTO nevertheless has lower weighted cost under all three tested access-weight vectors. The comparison is therefore a cost--access trade-off.
+
+\begin{table}[htbp]
+\centering
+\caption{E3: appointment-access trade-off under the current cost weights.}
+\label{tab:e3-service-tradeoff}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llrrrr@{}}
+\toprule
+Scenario & Policy & Cost & Confirmation & Throughput & Unconfirmed \\
+\midrule
+High & Fast+tracker feedback & 0.468 & 0.886 & 0.871 & 3,082 \\
+High & Fixed-pair PTO & 0.310 & 0.827 & 0.814 & 4,676 \\
+Peak & Fast+tracker feedback & 0.496 & 0.881 & 0.867 & 3,222 \\
+Peak & Fixed-pair PTO & 0.318 & 0.828 & 0.815 & 4,675 \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} PTO denotes predict-then-optimize.
+\end{minipage}
+\end{table}
+
+For policy \(\pi\), let \(C_\pi^\lambda=C_\pi+\lambda(1-\alpha_\pi)\), where \(C_\pi\) is weighted operating cost and \(\alpha_\pi\) is its confirmation rate. When \(\alpha_{\mathrm{FB}}>\alpha_{\mathrm{PTO}}\), the indifference threshold is \(\lambda^*=(C_{\mathrm{FB}}-C_{\mathrm{PTO}})/(\alpha_{\mathrm{FB}}-\alpha_{\mathrm{PTO}})\). Using the underlying archived outputs, \(\lambda^*\) is 2.67 in the high workload and 3.32 in the peak workload; rounded table entries need not reproduce these values exactly. The units are normalized performance cost rather than money, so the calculation shows how an externally supplied access valuation changes the ranking but does not estimate that valuation.
+
+The final diagnostic tests two unestimated design choices in an independent aggregate implementation with five common seeds and 80 replications per seed. It scales all four gains in Eq.~(16) from 0.5 to 1.5 and redistributes the 16\% late-arrival mass over supports of one, two, and four windows. Relative to Eq.~(12), this reference code uses queue-only yard pressure by setting the busy-yard term to zero; relative to Eq.~(5), it replaces the rolling request average by the scenario mean. It is therefore a sensitivity check for a queue-only variant of the fast rule, not a replay of the vehicle-level controller.
+
+\begin{table*}[htbp]
+\centering
+\caption{Reference diagnostics for fast-feedback gain magnitude and appointment-lateness support. Queue and terminal-backlog ranges are in trucks; drift is in trucks per window.}
+\label{tab:fast-feedback-robustness}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llllrrr@{}}
+\toprule
+Scenario & \makecell[l]{Design\\change} & \makecell[l]{Tested\\values} & \makecell[r]{Cost\\range} & \makecell[r]{Mean queue\\range} & \makecell[r]{Terminal yard\\range} & \makecell[r]{Max.\\$|\mathrm{drift}|$} \\
+\midrule
+High & Gain multiplier & 0.50--1.50 & 0.2193--0.2217 & 5.27--5.84 & 2.73--3.36 & 0.000119 \\
+Peak & Gain multiplier & 0.50--1.50 & 0.2210--0.2232 & 5.36--5.90 & 2.74--3.80 & 0.000145 \\
+High & Lateness support \(L\) & 1, 2, 4 & 0.2186--0.2208 & 5.43--5.56 & 2.66--3.14 & 0.000164 \\
+Peak & Lateness support \(L\) & 1, 2, 4 & 0.2204--0.2227 & 5.52--5.65 & 3.10--3.60 & 0.000142 \\
+\bottomrule
+\end{tabular*}
+\begin{minipage}{\textwidth}
+\footnotesize\raggedright
+\textit{Note:} The reference diagnostic uses the same horizon, warm-up, service scales, resource bounds, target access fraction, and high/peak request rates, but approximates yard pressure with the waiting queue alone and the rolling access floor with the scenario request mean. Drift is the ordinary-least-squares slope of the mean yard queue over the final 10 days.
+\end{minipage}
+\end{table*}
+
+Across the tested gain multipliers, weighted cost varies by at most 1.1\% around the base value and mean queues remain below six trucks. Changing lateness support produces similarly narrow ranges. These results show no knife-edge reversal for the queue-only reference variant over the tested design range. They do not validate Eq.~(12)'s busy-yard signal, identify an optimal gain vector or true lateness distribution, or by themselves test fast-only correction in the original vehicle-level E2 pipeline.
+
+\section{Discussion and managerial implications}
+\label{sec:policy-implications}
+
+\subsection{When predictive planning remains reliable}
+
+The evidence favors predictive planning as the operating backbone when the maintained model ranks feasible plans accurately. The Monte Carlo-selected high-fidelity fixed pair has the lowest weighted cost and waiting among the E1 representatives, subject to the unquantified planning-sample error in Eq.~(28a), and small belief errors do not reverse that reported ranking. The independent reconstruction further shows that frequent capacity re-identification can remove the severe no-reidentification loss. The relevant managerial question is therefore not whether to abandon planning, but whether model maintenance is fast enough relative to congestion buildup.
+
+The component evidence also discourages unnecessary algorithmic complexity. Under the tested high-fidelity conditions, enabling the paired tracker produces higher cost and P95 waiting-time point estimates than fast-only correction. The independent aggregate severe-error reconstruction has the same point-estimate ordering on cost, terminal backlog, and drift, and its pointwise seed-block intervals exclude zero. Those intervals quantify simulation-seed variability only and do not turn the reconstruction into an event-matched or vehicle-level comparison. The tracker remains an exploratory option; the simpler fast rule is the parsimonious feedback specification under the reported diagnostics, but the unavailable original vehicle-level E2 pipeline prevents a matched confirmation there.
+
+\subsection{When delayed model maintenance creates a role for feedback}
+
+E2 illustrates a narrower role for within-window correction. Under medium and severe errors, the selected fixed pair induces realized gate output above realized yard completions, and maintaining that instruction allows unresolved workload to accumulate before a revised model is available. Fast-plus-tracker feedback responds to the observed imbalance in the original stress path; in the separate aggregate reconstruction, both feedback specifications reduce the frozen plan's late-horizon drift from 5.509 to values within 0.001 trucks per window of zero. The same reconstruction places the mechanism on a response-time axis: one- and three-day updating remove almost all of the reconstructed loss, whereas weekly updating retains a costly transient. This is evidence about induced imbalance and delayed maintenance, not proof that capacity overestimation automatically causes drift or that feedback dominates a promptly updated planner.
+
+The tandem model adds an organizational implication. Appointment governance should connect gate access with yard workload, equipment status, exception handling, and downstream completions. Equation~(2) establishes the flow linkage, but the current experiments do not isolate the marginal effect of joint authority because a gate-only and joint policy were not compared under one archived architecture.
+
+\subsection{Information, access, and deployment requirements}
+
+The correction layer requires timely but limited operational information: pending requests, confirmed and outstanding cohorts, gate and yard queues, busy service units, arrivals, completions, prior actions, resource status, and disruptions. Its value also depends on real authority. If the appointment book is already closed or yard capacity cannot change at the decision frequency, the signals can diagnose imbalance but cannot implement the proposed correction.
+
+Waiting must be evaluated with appointment access. E3 shows that fixed-pair PTO attains lower operating cost while fast-plus-tracker feedback confirms more demand under the tested weights. The threshold calculation makes the trade-off explicit but leaves the social or contractual value of an unconfirmed request to the decision maker. A deployment should therefore report waiting, throughput, confirmation, unconfirmed demand, resource use, and distributional effects together.
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper develops a gate--yard framework in which a terminal confirms new appointment requests and activates yard capacity while previously confirmed cohorts remain immutable. The decision clock, appointment pipeline, service state, and safe execution maps distinguish confirmation from cancellation and planning instructions from executed actions.
+
+The computational evidence supports a conditional operating sequence. The Monte Carlo-selected high-fidelity fixed pair is the strongest reported cost and waiting benchmark. A materially overstated service model can create persistent congestion when it induces a maintained instruction whose realized gate output exceeds realized yard completions; timely capacity re-identification reverses that failure in the independent reconstruction. The high-fidelity component diagnostic reports lower point estimates for fast-only correction than for the optional tracker; the separate aggregate reconstruction reports the same ordering and pointwise seed-block intervals that exclude zero. The original vehicle-level E2 result nevertheless belongs only to fast-plus-tracker feedback, so neither diagnostic is presented as a matched fast-only ablation of E2.
+
+For practice, the resulting interpretation is to plan predictively, maintain the model, and add workload correction when observation-to-replanning latency exceeds the time in which congestion builds. Any implementation must preserve appointment access, coordinate gate and yard information, and report service and access outcomes jointly.
+
+The main limitation is evidentiary. Aggregate public records discipline the scenarios, but the archived vehicle-level E1--E3 pipeline lacks the numerical feedback center, exact cost-normalization maps, several execution settings, original seeds, and raw outputs. The independent diagnostics use different implementations, including a queue-only yard-pressure approximation, and cannot repair those omissions. The seed-block intervals in Table~\ref{tab:e2-adaptive} quantify only Monte Carlo and starting-seed variability within one independent aggregate reconstruction; they do not cover structural, calibration, parameter, or field uncertainty. A submission-grade extension should rebuild one common vehicle-level pipeline, pre-register the feedback baseline and execution contract, compare fast-only and fast-plus-tracker feedback with adaptive time-varying PTO under bidirectional errors, and add a controlled gate-only versus joint-authority ablation.
+
+\section*{Data availability}
+
+The public operational records and benchmark datasets used for calibration are cited in Section~\ref{subsec:6-1-data-sources-and-calibration-logic}. Tables~\ref{tab:calibration-audit}--\ref{tab:policy-setting} report the processed calibration values, scenario definitions, and known parameter status. The accompanying diagnostic archive provides scripts, fixed seeds, explicit reference-diagnostic initializers, and generated JavaScript Object Notation (JSON) outputs for the gain--lateness and severe-error reconstruction diagnostics, including both feedback specifications, periodic re-identification, seed-block summaries, and the pointwise intervals reported in Table~\ref{tab:e2-adaptive}. Those scripts use the aggregate approximations stated in Sections~\ref{subsec:6-4-pto-model-fidelity-and-the-value-of-feedback-correction} and~\ref{subsec:6-6-appointment-access-and-robustness-checks}. The archive does not reproduce E1--E3 or the vehicle-level component comparison. Missing items include the original source and raw outputs, numerical feedback center \(z^0\), exact cost-normalization maps, fixed-rule instruction, access-floor lookback and initialization, tracker coordinate and pairing schedule, PTO planning budget and tie-break, and original numerical seeds. The study does not use a terminal-specific restricted dataset; third-party source files remain subject to provider access and licensing terms.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+
+During preparation of this work, the authors used OpenAI Codex to review manuscript organization, improve language clarity, and assist with LaTeX editing. The authors reviewed and edited all resulting material and take full responsibility for the content of the publication.
+
+\appendix
+\section{Proofs of the analytical results}
+\label{app:proofs}
+
+\subsection*{Proof of Proposition 1}
+
+Continuous differentiability of \(\overline F^{+}(s^\star,\cdot)\) and \(\det J_F(\theta^\star)\ne0\) satisfy the inverse function theorem. The relaxed next-window response map consequently has a continuously differentiable local inverse around \(\theta^\star\), establishing local uniqueness and continuous dependence on the target feedback vector. \(\square\)
+
+\subsection*{Proof of Proposition 2}
+
+For either counterfactual action, Eq.~(2) gives \(N_{t+1}^{y,\pi}-N_t^y=D_t^{g,\pi}-D_t^{y,\pi}\). Taking conditional expectations from the same full state \(\xi\) under the same conditional exogenous law and applying \(\Delta_t^{\mathrm{FB}}(\xi)\le\Delta_t^{\mathrm{PTO}}(\xi)-\gamma\) yields Eq.~(25). \(\square\)
+
+\subsection*{Proof of Proposition 3}
+
+PTO optimality under the belief model gives \(\widehat J(u^{\mathrm{PTO}})\le\widehat J(u)\) for every \(u\in\mathcal U\). When \(\widehat J(u)=J(u)\) throughout this open-loop class, substitution yields Eq.~(27). \(\square\)
+
+\subsection*{Proof of Proposition 4}
+
+The uniform model-error bound and PTO optimality give
+
+\[
+J(u^{\mathrm{PTO}})
+\le \widehat J(u^{\mathrm{PTO}})+\Delta_{\mathcal U}
+\le \widehat J(u^*)+\Delta_{\mathcal U}
+\le J(u^*)+2\Delta_{\mathcal U},
+\]
+
+which is Eq.~(28). For the finite-sample extension, on the stated uniform-error event,
+
+\[
+\begin{aligned}
+J(u_N^{\mathrm{MC}})
+&\le \widehat J(u_N^{\mathrm{MC}})+\Delta_{\mathcal U}\\
+&\le \widetilde J_N(u_N^{\mathrm{MC}})+\Delta_{\mathcal U}+\varepsilon_N\\
+&\le \widetilde J_N(u^*)+\Delta_{\mathcal U}+\varepsilon_N\\
+&\le \widehat J(u^*)+\Delta_{\mathcal U}+2\varepsilon_N\\
+&\le J(u^*)+2\Delta_{\mathcal U}+2\varepsilon_N.
+\end{aligned}
+\]
+
+This is Eq.~(28a). \(\square\)
+
+\subsection*{Proof of Proposition 5}
+
+Equation~(2) gives \(N_{t+1}^y-N_t^y=D_t^{g,\mathrm{PTO}}-D_t^{y,\mathrm{PTO}}\). Taking expectations and applying Eq.~(29) yields Eq.~(30); summing the same identity over \(K\) windows yields Eq.~(31). In addition, \(D_t^{y,\mathrm{PTO}}\le Y_t(\mu_t^{y,\mathrm{PTO}})\), so the potential-capacity condition stated after Proposition 5 is sufficient for Eq.~(29). \(\square\)
+
+\subsection*{Execution-map feasibility argument}
+
+By construction, \(\Gamma_t^{\mathrm{FB}}\) applies the physical request and capacity bounds, the pre-specified integer mapping, and the compatible access floor. Whenever \(\Theta_t^{\mathrm{FB},d}\) is nonempty, its output therefore belongs to \(\Theta_t^{\mathrm{FB},d}\), which proves Eq.~(32). This argument establishes membership only and makes no nearest-point claim. \(\square\)
+
+\bibliographystyle{elsarticle-harv}
+\bibliography{references}
+
+\end{document}

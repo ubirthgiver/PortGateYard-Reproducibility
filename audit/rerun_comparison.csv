@@ -1,0 +1,8 @@
+experiment,matched_rows,maximum_numeric_difference,status
+E0 paper-date snapshot,8 output files and 24 scenario parameters,0.0,exact
+E1,800,0.0,exact
+E2,400,0.0,exact
+E3,288,0.0,exact
+Table 8,600,0.0,exact
+Table 10,2800,,independent_reconstruction_v2_historical_values_partly_differ
+Table 12,6400,,independent_reconstruction_v2_nearby_ranges

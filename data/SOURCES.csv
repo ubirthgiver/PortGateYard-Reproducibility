@@ -1,0 +1,7 @@
+source,url_or_doi,fields_used,role,redistributed
+SC Ports Port of Charleston Metrics,https://scspa.com/port-of-charleston-metrics/,daily gate missions and operating indicators,workload scaling,no
+Virginia Port Authority Port Statistics and Weekly Dashboard,https://operations.portofvirginia.com/port-statistics/,reservation moves missed reservations and turn times,appointment compliance proxy,no
+Port Houston Container Terminal Status Updates,https://porthouston.com/toolbox/container-terminals/schedules-arrivals/status-updates/,yard utilization dwell and terminal indicators,yard pressure and disruption proxy,no
+Huynh et al. TAS data,https://doi.org/10.17632/82zzdkrxx8.1,truck appointment and tour instances,feasible benchmark ranges,no
+Mar-Ortiz capacity-management data,https://doi.org/10.17632/2b646hgkt7.1,capacity-management instances,capacity benchmark ranges,no
+Prasetyo et al. dwelling-time event log,https://doi.org/10.17632/yvp2b4rtp3.1,truck-in truck-out stack and unstack events,process-sequence plausibility,no

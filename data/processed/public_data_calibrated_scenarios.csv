@@ -1,0 +1,5 @@
+﻿scenario,description,source_gate_missions,demand_multiplier,mean_requests,missed_reservation_rate_from_virginia,yard_utilization_from_houston,capacity_disruption_probability
+sc_low_workload,"SC Ports 低负荷日: 2026-07-02 00:00:00, gate missions=5961",5961.0,0.9892134085628941,22.751908396946565,0.04,0.38875,0.0611
+sc_median_workload,"SC Ports 中位负荷日: 2026-06-29 00:00:00, gate missions=6026",6026.0,1.0,23.0,0.04,0.38875,0.0611
+sc_high_workload,"SC Ports 高负荷日: 2026-07-01 00:00:00, gate missions=6401",6401.0,1.0622303352140723,24.431297709923662,0.04,0.38875,0.0611
+sc_peak_workload,"SC Ports 峰值负荷日: 2026-06-30 00:00:00, gate missions=6444",6444.0,1.0693660803186193,24.595419847328245,0.04,0.38875,0.0611

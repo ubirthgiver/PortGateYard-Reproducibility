@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install reproducibility environment",
+      "type": "shell",
+      "command": "python -m venv .venv; .venv\\Scripts\\python.exe -m pip install -r requirements.txt",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run unit tests",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe -m pytest -q",
+      "group": {"kind": "test", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "Build paper tables from archive",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe scripts\\build_paper_tables.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "Reproduce E2",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe scripts\\reproduce.py e2",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rebuild Table 10 and Table 12",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe scripts\\run_aggregate_diagnostics.py all --output generated",
+      "problemMatcher": []
+    },
+    {
+      "label": "Download current public data",
+      "type": "shell",
+      "command": ".venv\\Scripts\\python.exe scripts\\download_public_data.py --overwrite",
+      "problemMatcher": []
+    }
+  ]
+}

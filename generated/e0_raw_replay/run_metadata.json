@@ -1,0 +1,7 @@
+{
+  "archival_input": "user-supplied retained paper-date snapshot (2026-07-09)",
+  "fresh_manifest": "data/raw/download_manifest.csv",
+  "processed_reference": "data/processed",
+  "archival_all_exact": true,
+  "fresh_all_exact": false
+}

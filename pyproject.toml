@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "port-queue-learning"
+version = "0.1.0"
+description = "Reproducibility package for public-data-calibrated port gate-yard queue experiments"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.0",
+  "matplotlib>=3.8",
+  "tabulate>=0.9",
+  "openpyxl>=3.1",
+  "pypdf>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "jupyter>=1.0", "ipykernel>=6.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

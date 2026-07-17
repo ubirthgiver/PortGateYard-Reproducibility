@@ -1,0 +1,12 @@
+﻿source,metric,n,mean,median,min,max,cv
+SC Ports chsgatetransactions,Year of Week Of,18,2026.0,2026.0,2026.0,2026.0,0.0
+SC Ports chsgatetransactions,Transactions,18,10837.444444444445,2396.0,1097.0,31361.0,1.1979350864631257
+SC Ports chsturntimes,Year of Week Of,18,2026.0,2026.0,2026.0,2026.0,0.0
+SC Ports chsturntimes,Avg. Average Turn Time,18,19.894444444444446,19.78,18.25,22.6,0.062254570547579546
+SC Ports gatemissions,Mission Count,21,1370.5714285714287,274.0,0.0,5715.0,1.600303924701564
+SC Ports lastweeksturntimes,Avg Turn Time,15,18.41466666666667,18.11,12.95,23.35,0.169067480690475
+SC Ports chscraneproductivity,ISO Year,18,2026.0,2026.0,2026.0,2026.0,0.0
+SC Ports chscraneproductivity,Total_Productivity,18,36.413453763777774,36.2272830145,32.159008189,42.396550873,0.08547835992875095
+SC Ports chsvesselcalls,ISO Year,12,2026.0,2026.0,2026.0,2026.0,0.0
+SC Ports chsvesselcalls,Vessel Calls,12,10.0,9.0,2.0,18.0,0.6941312425025845
+SC Ports piermoves,Count,21,1316.5238095238096,518.0,0.0,4810.0,1.3803997014679197
