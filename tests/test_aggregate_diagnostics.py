@@ -7,7 +7,7 @@ from port_queue.aggregate_diagnostics import AggregateConfig, lateness_probabili
 
 def test_lateness_probabilities_are_valid() -> None:
     for support in (1, 2, 4):
-        probabilities = lateness_probabilities(support)
+        probabilities = lateness_probabilities(support, 0.16, 0.04)
         assert len(probabilities) == support + 2
         assert np.isclose(probabilities.sum(), 1.0)
         assert np.isclose(probabilities[-1], 0.04)
@@ -28,7 +28,7 @@ def test_frozen_severe_error_has_positive_drift() -> None:
     assert paths["late_horizon_drift"].mean() > 1.0
 
 
-def test_daily_reidentification_reduces_terminal_backlog() -> None:
+def test_daily_recovery_rule_reduces_terminal_backlog() -> None:
     config = AggregateConfig(days=10, warmup_days=2, late_horizon_days=3)
     frozen, _ = simulate_paths(config, "pto_frozen", 99, 40)
     daily, _ = simulate_paths(config, "pto_reid_1d", 99, 40)

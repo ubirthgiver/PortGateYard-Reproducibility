@@ -2,7 +2,7 @@
 
 ## Outcome
 
-The vehicle-level core of the paper is reproducible. E1, E2, E3, and the high-fidelity rolling-PTO/feedback-layer diagnostic were independently rerun from the current source. All common numerical output fields matched the archived results exactly.
+The vehicle-level core of the paper is reproducible. Fresh reruns from the archived source reproduced E1, E2, E3, and the high-fidelity six-policy component diagnostic. All common numerical output fields matched the archived results exactly.
 
 | Block | Rows checked | Maximum numerical difference | Verdict |
 |---|---:|---:|---|
@@ -35,7 +35,7 @@ The experiments are public-data-calibrated simulations. Public records determine
 
 ## Remaining blockers
 
-1. The original aggregate severe-error re-identification script and raw JSON outputs behind Table 10/Figure 3 were not found.
+1. The original aggregate severe-error script and raw JSON outputs behind the historical Table 10/Figure 3 were not found. The current Table 10 branch imposes an overloaded pair and activates a prespecified quota-recovery rule; it does not estimate capacity or re-solve PTO.
 2. The original gain-lateness diagnostic script and raw JSON outputs behind Table 12 were not found.
 3. Sixteen currently available third-party public files were downloaded again and recorded in `data/raw/download_manifest.csv`. Live dashboard exports are date-sensitive, and several older Port of Virginia snapshots are no longer available from their former direct URLs; the paper-date snapshot or its hashes must therefore be preserved.
 4. E2 did not contain a fast-only arm; Table 8 is not a matched fast-only E2 ablation.

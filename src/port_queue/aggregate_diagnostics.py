@@ -35,6 +35,7 @@ class AggregateConfig:
     quota_min: int = 12
     quota_max: int = 30
     no_show_probability: float = 0.04
+    total_late_probability: float = 0.16
     exception_mean: float = 0.5
     disruption_probability: float = 0.0611
     capacity_variance_to_mean: float = 1.8
@@ -57,31 +58,46 @@ class AggregateConfig:
     high_fidelity_yard: int = 6
     drain_quota: int = 14
     drain_release_threshold: float = 5.0
+    recovery_trigger_days: tuple[int, int, int] = (7, 3, 1)
     weights: tuple[float, float, float, float, float] = (0.30, 0.30, 0.20, 0.10, 0.10)
 
     @property
     def periods(self) -> int:
-        return self.days * 48
+        return self.days * self.periods_per_day
 
     @property
     def warmup_periods(self) -> int:
-        return self.warmup_days * 48
+        return self.warmup_days * self.periods_per_day
 
     @property
     def late_horizon_periods(self) -> int:
-        return self.late_horizon_days * 48
+        return self.late_horizon_days * self.periods_per_day
+
+    @property
+    def periods_per_day(self) -> int:
+        return (24 * 60) // self.slot_minutes
 
 
-def lateness_probabilities(support: int) -> np.ndarray:
-    """Keep no-shows at 4% and redistribute the 16% late-arrival mass."""
+def lateness_probabilities(
+    support: int,
+    total_late_probability: float,
+    no_show_probability: float,
+) -> np.ndarray:
+    """Redistribute the configured late-arrival mass over the requested support."""
+    on_time = 1.0 - total_late_probability - no_show_probability
     if support == 1:
-        return np.array([0.80, 0.16, 0.04])
+        return np.array([on_time, total_late_probability, no_show_probability])
     if support == 2:
-        return np.array([0.80, 0.13, 0.03, 0.04])
+        return np.array([
+            on_time,
+            total_late_probability * 13.0 / 16.0,
+            total_late_probability * 3.0 / 16.0,
+            no_show_probability,
+        ])
     if support == 4:
         tail = np.array([0.13, 0.03, 0.015, 0.005])
-        tail *= 0.16 / tail.sum()
-        return np.r_[0.80, tail, 0.04]
+        tail *= total_late_probability / tail.sum()
+        return np.r_[on_time, tail, no_show_probability]
     raise ValueError("lateness support must be 1, 2, or 4")
 
 
@@ -135,19 +151,28 @@ def simulate_paths(
     gain_multiplier: float = 1.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(seed)
-    probabilities = lateness_probabilities(lateness_support)
+    probabilities = lateness_probabilities(
+        lateness_support,
+        config.total_late_probability,
+        config.no_show_probability,
+    )
     delayed = [np.zeros(paths, dtype=int) for _ in range(lateness_support)]
     qg = np.zeros(paths, dtype=float)
     qy = np.zeros(paths, dtype=float)
-    previous_q = np.full(paths, 21, dtype=int)
-    previous_y = np.full(paths, 8, dtype=int)
+    initial_q, initial_y = _physical_actions(
+        config,
+        np.array([config.diagnostic_center_quota]),
+        np.array([config.diagnostic_center_yard]),
+    )
+    previous_q = np.full(paths, int(initial_q[0]), dtype=int)
+    previous_y = np.full(paths, int(initial_y[0]), dtype=int)
     zq = np.full(paths, config.diagnostic_center_quota, dtype=float)
     zy = np.full(paths, config.diagnostic_center_yard, dtype=float)
     tracker_iteration = np.zeros(paths, dtype=int)
     tracker_coordinate = rng.integers(0, 2, size=paths)
     tracker_direction = np.full(paths, -1, dtype=int)
     tracker_minus_cost = np.zeros(paths, dtype=float)
-    reidentified = np.zeros(paths, dtype=bool)
+    recovery_active = np.zeros(paths, dtype=bool)
 
     eval_cost = np.zeros(paths)
     eval_queue = np.zeros(paths)
@@ -155,8 +180,8 @@ def simulate_paths(
     mean_yard_trace = np.zeros(config.periods)
     path_yard_tail = np.zeros((config.late_horizon_periods, paths))
 
-    update_days = {"pto_reid_7d": 7, "pto_reid_3d": 3, "pto_reid_1d": 1}
-    update_interval = update_days.get(policy, 0) * 48
+    trigger_days = dict(zip(("pto_reid_7d", "pto_reid_3d", "pto_reid_1d"), config.recovery_trigger_days))
+    trigger_interval = trigger_days.get(policy, 0) * config.periods_per_day
     floor_quota = int(np.ceil(config.access_floor * config.mean_requests))
 
     for t in range(config.periods):
@@ -166,13 +191,13 @@ def simulate_paths(
         elif policy == "pto_high_fidelity":
             quota = np.full(paths, config.high_fidelity_quota, dtype=int)
             yard = np.full(paths, config.high_fidelity_yard, dtype=int)
-        elif policy in update_days:
-            if t > 0 and t % update_interval == 0:
-                reidentified[:] = True
+        elif policy in trigger_days:
+            if t > 0 and t % trigger_interval == 0:
+                recovery_active[:] = True
             quota = np.where(
-                reidentified & (qy > config.drain_release_threshold),
+                recovery_active & (qy > config.drain_release_threshold),
                 config.drain_quota,
-                np.where(reidentified, config.high_fidelity_quota, config.initial_severe_quota),
+                np.where(recovery_active, config.high_fidelity_quota, config.initial_severe_quota),
             ).astype(int)
             yard = np.full(paths, config.initial_severe_yard, dtype=int)
         else:

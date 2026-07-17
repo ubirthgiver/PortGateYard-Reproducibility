@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import replace
+from dataclasses import asdict
 from pathlib import Path
 import sys
 
@@ -39,9 +39,81 @@ def _write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _markdown_table(frame: pd.DataFrame) -> str:
+    """Render a compact pipe table without pandas' optional tabulate dependency."""
+    def cell(value: object) -> str:
+        if pd.isna(value):
+            return ""
+        if isinstance(value, (float, np.floating)):
+            return f"{float(value):.6g}"
+        return str(value).replace("|", "\\|")
+
+    columns = [str(column) for column in frame.columns]
+    lines = ["| " + " | ".join(columns) + " |", "| " + " | ".join("---" for _ in columns) + " |"]
+    lines.extend("| " + " | ".join(cell(value) for value in row) + " |" for row in frame.itertuples(index=False, name=None))
+    return "\n".join(lines)
+
+
+def _aggregate_config(settings: dict, mean_requests: float) -> AggregateConfig:
+    yard_min, yard_max = settings["yard_units"]
+    quota_min, quota_max = settings["quota_bounds"]
+    center_q, center_y = settings["diagnostic_center_z"]
+    kgg, kgy, kyg, kyy = settings["fast_gains"]
+    severe_q, severe_y = settings["initial_severe_pair"]
+    reference_q, reference_y = settings["high_fidelity_pair"]
+    weights = settings["cost_weights"]
+    tracker = settings["tracker"]
+    return AggregateConfig(
+        slot_minutes=int(settings["slot_minutes"]),
+        days=int(settings["horizon_days"]),
+        warmup_days=int(settings["warmup_days"]),
+        late_horizon_days=int(settings["late_horizon_days"]),
+        mean_requests=float(mean_requests),
+        gate_service_mean=float(settings["gate_service_minutes"]),
+        yard_service_mean=float(settings["yard_service_minutes"]),
+        gate_lanes=int(settings["gate_lanes"]),
+        yard_min=int(yard_min),
+        yard_max=int(yard_max),
+        quota_min=int(quota_min),
+        quota_max=int(quota_max),
+        no_show_probability=float(settings["no_show_probability"]),
+        total_late_probability=float(settings["total_late_probability"]),
+        exception_mean=float(settings["exception_arrival_mean"]),
+        disruption_probability=float(settings["capacity_disruption_probability"]),
+        capacity_variance_to_mean=float(settings["aggregate_capacity_variance_to_mean"]),
+        access_floor=float(settings["access_floor_fraction"]),
+        queue_scale=float(settings["queue_scale"]),
+        pressure_clip=float(settings["pressure_clip"]),
+        yard_pressure_reference=float(settings["yard_pressure_reference"]),
+        diagnostic_center_quota=float(center_q),
+        diagnostic_center_yard=float(center_y),
+        kgg=float(kgg),
+        kgy=float(kgy),
+        kyg=float(kyg),
+        kyy=float(kyy),
+        eta0=float(tracker["eta0"]),
+        delta0=float(tracker["delta0"]),
+        delta_min=float(tracker["delta_min"]),
+        initial_severe_quota=int(severe_q),
+        initial_severe_yard=int(severe_y),
+        high_fidelity_quota=int(reference_q),
+        high_fidelity_yard=int(reference_y),
+        drain_quota=int(settings["backlog_drain_quota"]),
+        drain_release_threshold=float(settings["backlog_release_threshold_trucks"]),
+        recovery_trigger_days=tuple(int(x) for x in settings["recovery_trigger_days"]),
+        weights=(
+            float(weights["gate_queue"]),
+            float(weights["yard_queue"]),
+            float(weights["resource"]),
+            float(weights["adjustment"]),
+            float(weights["unconfirmed"]),
+        ),
+    )
+
+
 def run_table10(output: Path) -> pd.DataFrame:
     settings = _load(ROOT / "configs" / "table10_reconstruction.json")
-    config = AggregateConfig(mean_requests=float(settings["mean_requests_per_30min"]))
+    config = _aggregate_config(settings, float(settings["mean_requests_per_30min"]))
     output.mkdir(parents=True, exist_ok=True)
     raw_parts: list[pd.DataFrame] = []
     traces: list[pd.DataFrame] = []
@@ -94,7 +166,10 @@ def run_table10(output: Path) -> pd.DataFrame:
         )
     pd.DataFrame(comparisons).to_csv(output / "fast_vs_tracker_seed_block_intervals.csv", index=False, encoding="utf-8-sig")
     _plot_table10(output, summary)
-    _write_json(output / "run_metadata.json", {**settings, "implementation": "src/port_queue/aggregate_diagnostics.py"})
+    _write_json(
+        output / "run_metadata.json",
+        {**settings, "resolved_aggregate_config": asdict(config), "implementation": "src/port_queue/aggregate_diagnostics.py"},
+    )
     return summary
 
 
@@ -105,10 +180,10 @@ def _plot_table10(output: Path, summary: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
     labels = {
-        "pto_frozen": "Frozen\nPTO",
-        "pto_reid_7d": "7-day\nre-ID",
-        "pto_reid_3d": "3-day\nre-ID",
-        "pto_reid_1d": "1-day\nre-ID",
+        "pto_frozen": "Maintained\n(24,6)",
+        "pto_reid_7d": "Rule after\n7 days",
+        "pto_reid_3d": "Rule after\n3 days",
+        "pto_reid_1d": "Rule after\n1 day",
     }
     order = list(labels)
     focus = summary.set_index("policy").loc[order]
@@ -118,7 +193,7 @@ def _plot_table10(output: Path, summary: pd.DataFrame) -> None:
     axes[1].bar(range(4), focus["terminal_yard_backlog"], color=colors)
     for ax, title, ylabel in zip(
         axes,
-        ("Weighted cost", "Terminal yard backlog"),
+        ("Aggregate diagnostic cost", "Terminal yard backlog"),
         ("Post-warm-up mean", "Trucks"),
     ):
         ax.set_yscale("log")
@@ -131,7 +206,7 @@ def _plot_table10(output: Path, summary: pd.DataFrame) -> None:
         axes[0].text(index, value * 1.18, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
     for index, value in enumerate(focus["terminal_yard_backlog"]):
         axes[1].text(index, value * 1.18, f"{value:,.1f}", ha="center", va="bottom", fontsize=8)
-    fig.suptitle("Severe-error recovery under periodic re-identification", fontweight="bold")
+    fig.suptitle("Post-warm-up persistence after quota-rule activation", fontweight="bold")
     fig.tight_layout()
     fig.savefig(output / "fig_table10_reconstructed.pdf", bbox_inches="tight")
     fig.savefig(output / "fig_table10_reconstructed.png", dpi=240, bbox_inches="tight")
@@ -144,7 +219,7 @@ def run_table12(output: Path) -> pd.DataFrame:
     raw_parts: list[pd.DataFrame] = []
     rows: list[dict[str, object]] = []
     for scenario, mean_requests in settings["scenarios"].items():
-        config = AggregateConfig(mean_requests=float(mean_requests))
+        config = _aggregate_config(settings, float(mean_requests))
         for design, values in (
             ("gain_multiplier", settings["gain_multipliers"]),
             ("lateness_support", settings["lateness_supports"]),
@@ -193,7 +268,17 @@ def run_table12(output: Path) -> pd.DataFrame:
     raw.to_csv(output / "path_results.csv", index=False, encoding="utf-8-sig")
     detailed.to_csv(output / "table12_detailed.csv", index=False, encoding="utf-8-sig")
     ranges.to_csv(output / "table12_reconstructed_ranges.csv", index=False, encoding="utf-8-sig")
-    _write_json(output / "run_metadata.json", {**settings, "implementation": "src/port_queue/aggregate_diagnostics.py"})
+    _write_json(
+        output / "run_metadata.json",
+        {
+            **settings,
+            "resolved_aggregate_configs": {
+                scenario: asdict(_aggregate_config(settings, float(mean_requests)))
+                for scenario, mean_requests in settings["scenarios"].items()
+            },
+            "implementation": "src/port_queue/aggregate_diagnostics.py",
+        },
+    )
     return ranges
 
 
@@ -244,35 +329,35 @@ def comparison_report(table10: pd.DataFrame, table12: pd.DataFrame, output: Path
         "",
         "## 表10：旧稿记录",
         "",
-        reported10.to_markdown(index=False),
+        _markdown_table(reported10),
         "",
         "## 表10：本次重建运行",
         "",
-        table10.to_markdown(index=False),
+        _markdown_table(table10),
         "",
         "### 表10逐项差异",
         "",
-        comparison10.to_markdown(index=False),
+        _markdown_table(comparison10),
         "",
         "## 表12：旧稿记录",
         "",
-        reported12.to_markdown(index=False),
+        _markdown_table(reported12),
         "",
         "## 表12：本次重建运行",
         "",
-        table12.to_markdown(index=False),
+        _markdown_table(table12),
         "",
         "## 判断",
         "",
         "- 冻结PTO的失稳机制近似复现：成本、末端积压和尾部漂移均与旧记录非常接近。",
         "- Fast-only 与 fast+tracker 的排序复现，且十个种子块的差值区间不跨零；重建版仍显示 tracker 在本组设定下增加成本和末端积压。",
         "- 表12的结论复现：增益倍数与迟到支持变化没有造成刀刃式反转，队列保持有界；绝对区间与旧表接近但不完全相同。",
-        "- 一日/三日重识别能够消除失稳，但其重建成本未逐项复现旧表。旧脚本遗失的规划样本与重新求解规则是主要不可识别项。",
+        "- 一日/三日触发的预设配额恢复规则能够消除持续失稳，但其重建成本未逐项复现旧表；该诊断不估计容量，也不重新求解 PTO。",
         "- 因此应写成‘机制与排序得到独立重建支持’，不能写成‘旧表全部精确复现’。",
         "",
         "## 证据边界",
         "",
-        "- 可以复核：代码执行、随机种子、质量守恒、策略方向、重识别频率和敏感性区间。",
+        "- 可以复核：代码执行、随机种子、质量守恒、策略方向、恢复规则触发时点和敏感性区间。",
         "- 不能宣称：本次脚本就是生成旧表的原始脚本。",
         "- 若旧数值与新数值不一致，投稿稿应使用本次可复现结果，或将旧表降级为不可复核的历史记录。",
     ]

@@ -4,6 +4,7 @@
     "high": 24.43,
     "peak": 24.595419847328245
   },
+  "slot_minutes": 30,
   "horizon_days": 30,
   "warmup_days": 7,
   "late_horizon_days": 10,
@@ -30,7 +31,24 @@
   ],
   "total_late_probability": 0.16,
   "no_show_probability": 0.04,
+  "exception_arrival_mean": 0.5,
+  "gate_service_minutes": 5.0,
+  "yard_service_minutes": 10.0,
+  "gate_lanes": 4,
+  "yard_units": [
+    6,
+    10
+  ],
+  "quota_bounds": [
+    12,
+    30
+  ],
+  "capacity_disruption_probability": 0.0611,
   "aggregate_capacity_variance_to_mean": 1.8,
+  "access_floor_fraction": 0.85,
+  "queue_scale": 20.0,
+  "pressure_clip": 1.5,
+  "yard_pressure_reference": 0.2,
   "yard_pressure_signal": "waiting queue only",
   "access_floor_reference": "0.85 times scenario mean requests",
   "diagnostic_center_z": [
@@ -43,6 +61,26 @@
     0.08,
     0.45
   ],
+  "tracker": {
+    "eta0": 0.08,
+    "delta0": 0.1,
+    "delta_min": 0.03
+  },
+  "initial_severe_pair": [
+    24,
+    6
+  ],
+  "high_fidelity_pair": [
+    15,
+    6
+  ],
+  "backlog_drain_quota": 14,
+  "backlog_release_threshold_trucks": 5.0,
+  "recovery_trigger_days": [
+    7,
+    3,
+    1
+  ],
   "cost_weights": {
     "gate_queue": 0.3,
     "yard_queue": 0.3,
@@ -51,5 +89,107 @@
     "unconfirmed": 0.1
   },
   "explicit_reconstruction_assumption": "Saturated demand fills each offered quota; L=4 extends the L=2 late shape with a disclosed geometrically decreasing tail.",
+  "resolved_aggregate_configs": {
+    "high": {
+      "slot_minutes": 30,
+      "days": 30,
+      "warmup_days": 7,
+      "late_horizon_days": 10,
+      "mean_requests": 24.43,
+      "gate_service_mean": 5.0,
+      "yard_service_mean": 10.0,
+      "gate_lanes": 4,
+      "yard_min": 6,
+      "yard_max": 10,
+      "quota_min": 12,
+      "quota_max": 30,
+      "no_show_probability": 0.04,
+      "total_late_probability": 0.16,
+      "exception_mean": 0.5,
+      "disruption_probability": 0.0611,
+      "capacity_variance_to_mean": 1.8,
+      "access_floor": 0.85,
+      "queue_scale": 20.0,
+      "pressure_clip": 1.5,
+      "yard_pressure_reference": 0.2,
+      "diagnostic_center_quota": 0.5,
+      "diagnostic_center_yard": 0.6,
+      "kgg": 0.18,
+      "kgy": 0.28,
+      "kyg": 0.08,
+      "kyy": 0.45,
+      "eta0": 0.08,
+      "delta0": 0.1,
+      "delta_min": 0.03,
+      "initial_severe_quota": 24,
+      "initial_severe_yard": 6,
+      "high_fidelity_quota": 15,
+      "high_fidelity_yard": 6,
+      "drain_quota": 14,
+      "drain_release_threshold": 5.0,
+      "recovery_trigger_days": [
+        7,
+        3,
+        1
+      ],
+      "weights": [
+        0.3,
+        0.3,
+        0.2,
+        0.1,
+        0.1
+      ]
+    },
+    "peak": {
+      "slot_minutes": 30,
+      "days": 30,
+      "warmup_days": 7,
+      "late_horizon_days": 10,
+      "mean_requests": 24.595419847328245,
+      "gate_service_mean": 5.0,
+      "yard_service_mean": 10.0,
+      "gate_lanes": 4,
+      "yard_min": 6,
+      "yard_max": 10,
+      "quota_min": 12,
+      "quota_max": 30,
+      "no_show_probability": 0.04,
+      "total_late_probability": 0.16,
+      "exception_mean": 0.5,
+      "disruption_probability": 0.0611,
+      "capacity_variance_to_mean": 1.8,
+      "access_floor": 0.85,
+      "queue_scale": 20.0,
+      "pressure_clip": 1.5,
+      "yard_pressure_reference": 0.2,
+      "diagnostic_center_quota": 0.5,
+      "diagnostic_center_yard": 0.6,
+      "kgg": 0.18,
+      "kgy": 0.28,
+      "kyg": 0.08,
+      "kyy": 0.45,
+      "eta0": 0.08,
+      "delta0": 0.1,
+      "delta_min": 0.03,
+      "initial_severe_quota": 24,
+      "initial_severe_yard": 6,
+      "high_fidelity_quota": 15,
+      "high_fidelity_yard": 6,
+      "drain_quota": 14,
+      "drain_release_threshold": 5.0,
+      "recovery_trigger_days": [
+        7,
+        3,
+        1
+      ],
+      "weights": [
+        0.3,
+        0.3,
+        0.2,
+        0.1,
+        0.1
+      ]
+    }
+  },
   "implementation": "src/port_queue/aggregate_diagnostics.py"
 }

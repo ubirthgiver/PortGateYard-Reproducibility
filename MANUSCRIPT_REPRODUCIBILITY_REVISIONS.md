@@ -1,10 +1,10 @@
-# Manuscript reproducibility statements that must be revised
+# Completed manuscript reproducibility revisions: audit record
 
-The locations below refer to `paper/main_snapshot.tex`, matching `Lijunjipaper1 (2).pdf`.
+This file preserves the audit trail that motivated the completed manuscript revisions. The current audited source and PDF are `paper/main_snapshot.tex` and `paper/main_snapshot.pdf`; their hashes are recorded in `paper/PAPER_VERSION.md`. Line locators below describe the pre-revision manuscript and are retained only as historical context.
 
 ## Overall correction
 
-The manuscript currently understates the reproducibility of E1-E3 and Table 8, while overstating the archive support for Tables 10 and 12.
+The pre-revision manuscript understated the reproducibility of E1-E3 and Table 8 while overstating the archive support for Tables 10 and 12. The current snapshot implements the evidence-supported distinction below.
 
 The evidence-supported statement is:
 

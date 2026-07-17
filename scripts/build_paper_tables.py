@@ -35,16 +35,27 @@ def build_table8() -> pd.DataFrame:
     if not path.exists():
         path = folder / "raw_results.csv"
     raw = pd.read_csv(path)
-    policies = ["pto", "online_fast_only", "online_joint"]
+    policies = [
+        "pto",
+        "pto_adaptive_slow",
+        "pto_adaptive_fast",
+        "online_fast_only",
+        "online_joint",
+    ]
     frame = (
         raw[raw["policy"].isin(policies)]
         .groupby(["scenario", "policy"], as_index=False)[
             ["mean_composite_cost", "p95_total_wait", "tail_net_queue_drift", "unstable"]
         ]
         .mean()
-        .rename(columns={"unstable": "threshold_crossing_share"})
+        .rename(columns={"unstable": "unstable_classification_share"})
     )
-    return frame
+    scenario_order = {"sc_high_workload": 0, "sc_peak_workload": 1}
+    policy_order = {name: i for i, name in enumerate(policies)}
+    return frame.sort_values(
+        ["scenario", "policy"],
+        key=lambda s: s.map(scenario_order) if s.name == "scenario" else s.map(policy_order),
+    )
 
 
 def build_table9() -> pd.DataFrame:

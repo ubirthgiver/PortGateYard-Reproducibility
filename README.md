@@ -14,7 +14,7 @@ This repository accompanies the manuscript **“Predictive Planning with Workloa
 | Table 10 / Figure 3 | Documented independent aggregate reconstruction; not an exact recovery of the historical script |
 | Table 12 | Documented independent aggregate reconstruction; not an exact recovery of the historical script |
 
-The current manuscript should use the reconstructed Table 10, Table 12, and Figure 3 values under `generated/`. Historical entries are retained under `results/reported_only/` only for provenance and must not be presented as current reproducible results.
+The current manuscript should use the reconstructed Table 10, Table 12, and Figure 3 values under `generated/`. Historical entries are retained under `results/reported_only/` only for provenance and must not be presented as current reproducible results. The Table 10 branch imposes action pairs and activates a prespecified quota-recovery rule after a configured delay; legacy internal policy identifiers containing `reid` do not denote an implemented capacity estimator or PTO re-solver.
 
 ## Quick start
 
@@ -76,7 +76,7 @@ The retained paper-date snapshot reproduced all eight archived E0 outputs and al
 
 ## Evidence boundaries
 
-This is a public-data-calibrated simulation study, not vehicle-level field validation or a causal evaluation of an implemented port policy. E2 is a fixed-pair no-reidentification stress test, not evidence that feedback dominates promptly updated PTO. Tables 10 and 12 use a separately documented aggregate pipeline and are not pooled numerically with the vehicle-level E2 results.
+This is a public-data-calibrated simulation study, not vehicle-level field validation or a causal evaluation of an implemented port policy. E2 is a fixed-pair no-reidentification stress test, not evidence that feedback dominates promptly updated PTO. Table 10 is a post-warm-up persistence diagnostic: trigger timing starts at simulation day zero, so the one- and three-day quota rules activate during the seven-day warm-up. Tables 10 and 12 use a separately documented aggregate pipeline and are not pooled numerically with the vehicle-level E2 results.
 
 See `REPRODUCE.md`, `REPRODUCIBILITY_STATUS.md`, `MANIFEST.csv`, and `AUDIT_REPORT.md` for the complete evidence map.
 

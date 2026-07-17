@@ -1,8 +1,10 @@
 # Audited paper version
 
-- PDF: `C:/Users/ZhuanZ/Downloads/Lijunjipaper1 (2).pdf`
-- PDF SHA-256: `0FA27B97AF6FE3D5446E98D7091BB790378CE280061E03F5B02F1BD8B1C662F8`
-- Pages: 46
-- Audit date: 2026-07-16
+- PDF: `paper/main_snapshot.pdf`
+- PDF SHA-256: `FA91EFF43C2D11EC67BBB1F8D8A423424B244ABDE6CEA358D49AE1D7373F379C`
+- LaTeX source: `paper/main_snapshot.tex`
+- LaTeX SHA-256: `609D1FB4916008A010CD99561A03F171BD6C107E1E6BE6D65ADE3E36DA0F79A9`
+- Pages: 51
+- Audit date: 2026-07-17
 
-`main_snapshot.tex` is the matching manuscript-source snapshot used to locate the reproducibility statements. The Overleaf project remains the authoritative editable manuscript.
+The two snapshot files match the audited manuscript delivered with this reproducibility archive. The Overleaf project remains the authoritative editable source.

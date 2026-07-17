@@ -447,9 +447,9 @@ def write_fidelity_report(config: SimulationConfig, advantage: pd.DataFrame, out
         "",
         "## 测试目的",
         "",
-        "本实验用于检验：在线协同学习不一定在 PTO 模型完全正确时大幅优于 PTO；但当 PTO 的模型保真度下降时，在线协同的 model-free 优势是否会变大。",
+        "本实验用于检验：在固定候选动作类和有限规划样本下，高保真 PTO 是强基准；当 PTO 使用的规划模型失真时，维持所选动作会如何改变与工作负荷反馈的比较。",
         "",
-        "实验中，真实港口运行环境保持不变，只逐步降低 PTO 优化时使用的模型保真度。PTO 不再使用近似排队 surrogate，而是在其认知模型下通过仿真搜索真实综合成本最低的固定配额和堆场能力；高保真情形下，该 PTO 等价于 true-cost / oracle fixed PTO。在线协同策略不使用这些失真模型，而是依据实时队列反馈更新决策。",
+        "实验中，真实港口运行环境保持不变，只逐步降低 PTO 规划时使用的模型保真度。每个候选固定配额--堆场能力组合由四条共同规划路径估计成本，再按估计均值选择；因此高保真情形是 Monte Carlo-selected fixed-pair benchmark，而不是已知真实期望成本的 oracle。工作负荷反馈策略不使用这些失真模型，而是依据实时队列更新决策。",
         "",
         "## PTO模型失真设置",
         "",
@@ -459,7 +459,7 @@ def write_fidelity_report(config: SimulationConfig, advantage: pd.DataFrame, out
     lines.extend(
         [
             "",
-            "PTO 每个保真度等级下搜索得到的固定动作保存在 `oracle_pto_action_search.csv` 中。",
+            "PTO 每个保真度等级下搜索得到的固定动作保存在旧文件名 `oracle_pto_action_search.csv` 中；该文件名不表示真实成本 oracle。",
             "",
             "## PTO 与在线协同策略对比",
             "",

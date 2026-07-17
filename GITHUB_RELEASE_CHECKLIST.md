@@ -15,5 +15,5 @@
 - [x] Select a software licence: MIT.
 - [ ] Confirm the final repository name and GitHub account/organisation.
 - [ ] Decide whether any paper-date raw snapshots may legally be redistributed; otherwise retain only hashes, source dates, and processed outputs.
-- [ ] Replace the manuscript's historical Table 10, Table 12, and Figure 3 with the reproducible reconstruction outputs.
+- [x] Replace the manuscript's historical Table 10, Table 12, and Figure 3 with the reproducible reconstruction outputs.
 - [ ] Add the final GitHub URL and release DOI, if available, to the Data Availability Statement.
